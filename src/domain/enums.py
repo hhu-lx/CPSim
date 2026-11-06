@@ -2,12 +2,12 @@
 from enum import Enum
 
 class TaskType(str, Enum):
-    # 任务类型枚举
-    AI_TRAINING = "ai_training"       # AI训练（长时、高算力、可中断）
-    SCIENTIFIC = "scientific"         # 科学计算（高内存带宽、突发性）
-    RENDERING = "rendering"           # 渲染/视频转码（吞吐量大、延迟敏感）
-    WEB_SERVICE = "web_service"       # 通用Web服务（低算力、实时性高）
-    GENERAL = "general"               # 通用计算（其他）
+    # Implementation note.
+    AI_TRAINING = "ai_training"       # Implementation note.
+    SCIENTIFIC = "scientific"         # Implementation note.
+    RENDERING = "rendering"           # Implementation note.
+    WEB_SERVICE = "web_service"       # Implementation note.
+    GENERAL = "general"               # Implementation note.
 
 
 class TaskStatus(str, Enum):

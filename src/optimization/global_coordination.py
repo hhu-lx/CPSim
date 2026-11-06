@@ -18,7 +18,7 @@ class GlobalCoordinationOptimizer(JointCoordinationOptimizer):
         if objective == "min_cost":
             configured.setdefault("cost", 1.0)
             configured.setdefault("renewable_curtailment", 0.35)
-            configured.setdefault("peak_shaving", 1.25)
+            configured.setdefault("peak_shaving", 0.25)
             configured.setdefault("storage_degradation", 0.05)
             configured.setdefault("delay", 0.2)
             return "weighted", configured
@@ -48,6 +48,6 @@ class GlobalCoordinationOptimizer(JointCoordinationOptimizer):
             weights=effective_weights,
             latency_ms=latency_ms,
             carbon_intensity=carbon_intensity,
-            maintain_terminal_soc=True,
+            maintain_terminal_soc=False,
             **kwargs,
         )

@@ -1,5 +1,6 @@
 import io
 import json
+import zipfile
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -479,6 +480,21 @@ def test_export_formats_are_real_csv_and_xlsx():
     assert xlsx_response.status_code == 200
     assert xlsx_response.headers["content-type"].startswith("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     assert xlsx_response.content[:2] == b"PK"
+
+
+def test_zip_export_contains_tabular_results_and_runtime_reports():
+    client, _ = make_client()
+    client.post(
+        "/config/apply",
+        data={"dispatch_strategy": "lowest_price", "pricing_strategy": "fixed_tou", "optimization_model": "heuristic"},
+        files={"pricing_csv": ("tou.csv", b"start_hour,end_hour,price\n0,24,0.5\n", "text/csv")},
+    )
+    response = client.get("/export?format=zip")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/zip")
+    with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+        names = set(archive.namelist())
+    assert {"simulation-result.json", "simulation-result.csv", "simulation-result.xlsx"}.issubset(names)
 
 
 def test_status_and_exports_include_coordination_and_complete_history():

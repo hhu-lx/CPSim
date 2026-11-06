@@ -2,7 +2,7 @@ from typing import Protocol
 import pandapower as pp
 
 class ElectricityPricingStrategy(Protocol):
-    """电网电价计算策略：根据电网状态计算节点电价"""
+    """Implementation documentation."""
     def get_node_price(
         self,
         network: pp.pandapowerNet,

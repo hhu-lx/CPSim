@@ -3,10 +3,9 @@ import pandapower as pp
 
 
 class MarginalElectricityPricing(ElectricityPricingStrategy):
-    """分时基准叠加任务负荷边际项的电价。
+    """Apply a marginal adjustment on top of the time-of-use base price.
 
-    ``base_pricing`` 是与固定峰谷电价共用的基准；没有传入时保留旧的
-    ``base_price`` 行为，方便独立使用和兼容已有配置。
+    The optional base pricing object preserves compatibility with existing configurations.
     """
     def __init__(
         self,

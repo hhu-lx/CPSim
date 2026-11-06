@@ -4,7 +4,7 @@ from src.domain.datacenter import DataCenter
 from src.strategies.allocation.base import AllocationStrategy
 
 class Scheduler:
-    #调度中心：根据策略选择最合适的数据中心
+    # Implementation note.
     def __init__(self, strategy: AllocationStrategy):
         self.strategy = strategy
 
@@ -14,5 +14,5 @@ class Scheduler:
         data_centers: List[DataCenter],
         snapshot: dict | None = None,
     ) -> DataCenter:
-        #调用策略分配任务
+        # Implementation note.
         return self.strategy.allocate(task, data_centers, snapshot)

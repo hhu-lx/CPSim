@@ -47,8 +47,9 @@ Upload a JSON or YAML configuration to customize simulation settings, datacenter
 5. Configure custom weights or parameters when a custom option is selected.
 6. Apply the configuration and start the simulation.
 7. Monitor grid health, renewable utilization, storage behavior, task queues, datacenter utilization, and power flows in real time.
-8. Stop the simulation when finished and export the results as JSON, CSV, or Excel.
+8. Stop the simulation when finished and export the results as JSON, CSV, Excel, or a ZIP package containing all result files and runtime reports.
 
 ## Results
 
 The dashboard reports task progress, datacenter compute and power usage, renewable generation and curtailment, storage activity, grid exchange, grid health, operating cost, and carbon emissions. Exported files contain the recorded simulation results for further analysis.
+

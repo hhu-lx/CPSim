@@ -20,22 +20,22 @@ class BandwidthManager:
             self.env,
             capacity=datacenter.total_bandwidth
         )
-        print(f"注册数据中心 {datacenter.name} (ID: {datacenter.id})，带宽容量: {datacenter.total_bandwidth} Mbps")
+        print(f"Registered datacenter {datacenter.name} (ID: {datacenter.id})，bandwidth capacity: {datacenter.total_bandwidth} Mbps")
 
     def request_bandwidth(self, datacenter_id: str, task: Task):
 
         if datacenter_id not in self.bandwidth_resources:
-            raise ValueError(f"数据中心 {datacenter_id} 未注册带宽资源")
+            raise ValueError(f"Datacenter {datacenter_id} bandwidth resource is not registered")
 
-        # 计算带宽需求
+        # Implementation note.
         required_bandwidth = self.calculate_bandwidth_requirement(task)
         task.required_bandwidth_mbps = required_bandwidth
 
-        # 申请带宽资源
+        # Implementation note.
         bandwidth_request = self.bandwidth_resources[datacenter_id].request()
         yield bandwidth_request
 
-        # 更新数据中心已用带宽
+        # Implementation note.
         dc = self.data_centers[datacenter_id]
         dc.used_bandwidth += required_bandwidth
 
@@ -45,10 +45,10 @@ class BandwidthManager:
         if datacenter_id not in self.bandwidth_resources:
             return
 
-        # 释放带宽资源
+        # Implementation note.
         self.bandwidth_resources[datacenter_id].release(bandwidth_request)
 
-        # 更新数据中心已用带宽
+        # Implementation note.
         dc = self.data_centers.get(datacenter_id)
         if dc:
             dc.used_bandwidth = max(0.0, dc.used_bandwidth - task.required_bandwidth_mbps)
@@ -64,14 +64,14 @@ class BandwidthManager:
         return (task.data_size_gb * 8192) / total_seconds
 
     def get_available_bandwidth(self, datacenter_id: str) -> float:
-        """获取指定数据中心的剩余带宽（Mbps）"""
+        """Implementation documentation."""
         if datacenter_id not in self.bandwidth_resources:
             return 0.0
         resource = self.bandwidth_resources[datacenter_id]
         return resource.capacity - resource.count
 
     def get_bandwidth_utilization(self, datacenter_id: str) -> float:
-        """获取带宽利用率（0-1）"""
+        """Implementation documentation."""
         if datacenter_id not in self.bandwidth_resources:
             return 0.0
         resource = self.bandwidth_resources[datacenter_id]
@@ -82,7 +82,7 @@ class BandwidthManager:
 
 class NetworkLatencySimulator:
     def __init__(self):
-        # 地区间延迟矩阵（ms）
+        # Implementation note.
         self.region_latency = {
             ("region_a", "region_a"): 5.0,
             ("region_a", "region_b"): 15.0,
@@ -93,11 +93,11 @@ class NetworkLatencySimulator:
         }
 
     def get_latency(self, from_region: str, to_region: str) -> float:
-        """获取两个地区之间的网络延迟（ms）"""
+        """Implementation documentation."""
         key = (from_region, to_region)
         if key in self.region_latency:
             return self.region_latency[key]
-        # 默认延迟
+        # Implementation note.
         return 20.0
 
     def get_transmission_time(self, data_size_gb: float, bandwidth_mbps: float) -> float:
@@ -119,7 +119,7 @@ def get_data_size_by_task_type(task_type: str, plan_gpu: float = 0.0) -> float:
 
     base_size = type_mapping.get(task_type, 10.0)
 
-    # GPU越多，数据量越大
+    # Implementation note.
     if task_type == "ai_training" and plan_gpu > 0:
         gpu_factor = plan_gpu / 100.0
         return base_size + gpu_factor * 100.0

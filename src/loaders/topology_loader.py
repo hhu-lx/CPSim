@@ -194,7 +194,7 @@ def topology_summary(topology: dict) -> dict[str, Any]:
     """Return safe, compact topology metadata for the dashboard."""
     validate_topology(topology)
     return {
-        "name": str(topology.get("name", "未命名拓扑")),
+        "name": str(topology.get("name", "Unnamed topology")),
         "base_mva": float(topology.get("base_mva", 100.0)),
         "bus_count": len(topology.get("buses", [])),
         "line_count": len(topology.get("lines", [])),

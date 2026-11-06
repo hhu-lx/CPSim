@@ -19,6 +19,11 @@ def test_dashboard_and_assets_expose_required_controls():
     assert "24-Hour Generation" in html
     assert "Generation Power Curve" not in html
     assert "Load Power Curve" not in html
+    assert "Dynamic Pricing" in html
+    assert "Marginal Pricing" not in html
+    assert "flow-legend" not in html
+    assert "More ›" not in html
+    assert "<small>SOC —</small>" in html
     for marker in ('runtimeOverview', 'resourcePanel', 'queuePanel', 'alertsPanel', 'totalCompute'):
         assert marker in html
     assert 'id="effectiveDataCenters"' not in html

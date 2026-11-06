@@ -9,7 +9,7 @@ class TimeSeriesDataLoader:
     def __init__(
         self,
         file_path: str,
-        data_name: str = "数据",
+        data_name: str = "data",
         time_compression: float = 1.0,
         start_offset_seconds: int = 0,
     ):
@@ -27,19 +27,19 @@ class TimeSeriesDataLoader:
 
     def _load_data(self):
         if not self.file_path.exists():
-            raise FileNotFoundError(f"文件不存在: {self.file_path}")
+            raise FileNotFoundError(f"File not found: {self.file_path}")
 
-        # 读取CSV
+        # Implementation note.
         df = pd.read_csv(self.file_path, header=None, names=['value'])
         self.data = df['value'].values.astype(np.float64)
         self.data = np.nan_to_num(self.data, nan=0.0, posinf=0.0, neginf=0.0)
         self.length = len(self.data)
 
-        print(f" 加载 {self.data_name}: {self.length} 个数据点")
-        print(f"   原始值范围: {np.min(self.data):.4f} ~ {np.max(self.data):.4f}")
+        print(f" Loaded {self.data_name}: {self.length} data points")
+        print(f"   Raw value range: {np.min(self.data):.4f} ~ {np.max(self.data):.4f}")
 
     def get_value_at_second(self, second: int) -> float:
-        """获取指定秒数的数据值（超出边界返回边界值）"""
+        """Implementation documentation."""
         if self.length == 0:
             return 0.0
         if second < 0:

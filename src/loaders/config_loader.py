@@ -6,7 +6,7 @@ from typing import Dict, Optional, List
 
 
 def get_project_root() -> Path:
-    """获取项目根目录（config_loader.py 位于 src/loaders/ 下）"""
+    """Implementation documentation."""
     return Path(__file__).resolve().parent.parent.parent
 
 
@@ -24,7 +24,7 @@ def resolve_path(path_str: Optional[str]) -> Optional[str]:
 
 
 def load_platform_config(config_file: str = None) -> Dict:
-    """加载平台配置文件（YAML）"""
+    """Implementation documentation."""
     if config_file is None:
         config_file = get_project_root() / "config" / "platform.yaml"
     else:
@@ -33,17 +33,17 @@ def load_platform_config(config_file: str = None) -> Dict:
             config_file = get_project_root() / config_file
 
     if not config_file.exists():
-        raise FileNotFoundError(f"配置文件不存在: {config_file}")
+        raise FileNotFoundError(f"Configuration file not found: {config_file}")
 
     with open(config_file, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
 
-    print(f"加载配置文件: {config_file}")
+    print(f"Loading configuration file: {config_file}")
     return config
 
 
 def get_grid_config(config: Dict) -> Dict:
-    """提取电网配置（含路径解析）"""
+    """Implementation documentation."""
     grid = config.get('grid', {}).copy()
     for key in ['load_file', 'pv_file', 'wind_file', 'base_generation_file', 'topology_file']:
         if key in grid and grid[key]:
@@ -52,12 +52,12 @@ def get_grid_config(config: Dict) -> Dict:
 
 
 def get_simulation_config(config: Dict) -> Dict:
-    """提取仿真配置"""
+    """Implementation documentation."""
     return config.get('simulation', {})
 
 
 def build_data_centers(config: Dict) -> List:
-    """根据配置构建数据中心列表"""
+    """Implementation documentation."""
     from src.domain.datacenter import DataCenter
     from src.domain.device import DeviceSpec
     from src.data.reference_tables import load_equipment_power_curves, load_equipment_power_traces
@@ -99,8 +99,8 @@ def build_data_centers(config: Dict) -> List:
             device_pool=devices,
         )
         data_centers.append(dc)
-        print(f"  {dc.name} ({dc.id}) : 节点 {dc.grid_bus_id}, "
-              f"算力 {dc.total_compute} TFLOPS, 带宽 {dc.total_bandwidth} Mbps")
+        print(f"  {dc.name} ({dc.id}) : bus {dc.grid_bus_id}, "
+              f"compute {dc.total_compute} TFLOPS, bandwidth {dc.total_bandwidth} Mbps")
 
     return data_centers
 

@@ -6,13 +6,13 @@ from .base import AllocationStrategy
 
 
 class LowestPriceStrategy(AllocationStrategy):
-    """按最低算力价格分配（支持跨区域调度）"""
+    """Implementation documentation."""
 
     def __init__(self, allow_cross_region: bool = True):
         self.allow_cross_region = allow_cross_region
 
     def allocate(self, task: Task, data_centers: List[DataCenter], snapshot: dict | None = None) -> DataCenter:
-        # 先筛选有足够算力的数据中心
+        # Implementation note.
         # Use the same complete feasibility check as COPT: compute, network
         # bandwidth and requested GPU inventory must all be available.
         eligible = [dc for dc in data_centers if dc.can_allocate(task)]
@@ -31,12 +31,12 @@ class LowestPriceStrategy(AllocationStrategy):
                 f"required_gpu={task.required_gpu_count or 0} ({task.required_gpu_type or task.gpu_type or 'any'}); {details}"
             )
 
-        # 如果允许跨区域，直接按价格排序
+        # Implementation note.
         if self.allow_cross_region:
             eligible.sort(key=lambda dc: dc.current_price)
             return eligible[0]
 
-        # 不允许跨区域：只选同区域的
+        # Implementation note.
         same_region = [dc for dc in eligible if dc.region == task.region]
         if not same_region:
             raise Exception(f"No available data center in region {task.region} for task {task.id}")

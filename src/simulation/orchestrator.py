@@ -9,40 +9,40 @@ from src.loaders.excel_loader import load_tasks_from_excel
 
 def main():
     parser = argparse.ArgumentParser(
-        description="算电协同仿真平台",
+        description="Computing-Power Synergy simulation platform",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    # 核心参数
+    # Implementation note.
     parser.add_argument("--config", type=str, default=None,
-                       help="配置文件路径")
+                       help="Configuration file path")
     parser.add_argument("--excel", type=str, default=None,
-                       help="任务数据Excel")
+                       help="Task data Excel file")
     parser.add_argument("--load", type=str, default=None,
-                       help="负荷CSV")
+                       help="Load CSV file")
     parser.add_argument("--pv", type=str, default=None,
-                       help="光伏CSV")
+                       help="PV CSV file")
     parser.add_argument("--wind", type=str, default=None,
-                       help="风电CSV")
+                       help="Wind CSV file")
     parser.add_argument("--user-config", type=str, default=None,
-                       help="前端用户JSON配置")
+                       help="Frontend user JSON configuration")
     parser.add_argument("--stats-interval", type=int, default=None,
-                       help="统计间隔秒数")
+                       help="Statistics interval in seconds")
     parser.add_argument("--speed", type=float, default=None,
-                       help="输出延迟秒数")
+                       help="Output delay in seconds")
     args = parser.parse_args()
 
     print("=" * 60)
-    print("      算电协同仿真平台 - 配置驱动    ")
+    print("      Computing-Power Synergy Platform - Configuration Driven    ")
     print("=" * 60)
 
-    # 加载配置
+    # Implementation note.
     try:
         config = load_platform_config(args.config)
     except FileNotFoundError:
-        print("未找到配置文件，使用默认设置")
+        print("Configuration file not found; using defaults")
         config = {}
 
-    # 加载任务数据
+    # Implementation note.
     tasks = []
     excel_file = args.excel or config.get('tasks', {}).get('excel_file')
     excel_file = resolve_path(excel_file) if excel_file else None
@@ -56,12 +56,12 @@ def main():
         try:
             tasks = load_tasks_from_excel(region=default_region)
         except FileNotFoundError:
-            print("未找到任务数据文件")
+            print("Task data file not found")
 
-    print(f"加载任务数: {len(tasks)}")
+    print(f"Loaded tasks: {len(tasks)}")
 
-    # 初始化引擎
-    print("\n初始化仿真引擎...")
+    # Implementation note.
+    print("\nInitializing simulation engine...")
     engine = SimulationEngine(
         config_file=args.config,
         time_scale=args.speed,
@@ -72,18 +72,18 @@ def main():
         stats_interval_seconds=args.stats_interval
     )
 
-    # 提交任务
+    # Implementation note.
     for task in tasks:
         engine.submit_task(task)
-    print(f"已提交 {len(tasks)} 个任务")
+    print(f"Submitted {len(tasks)} tasks")
     engine.start()
 
-    print("\n仿真运行中...")
+    print("\nSimulation running...")
     try:
         while True:
             time.sleep(60)
     except KeyboardInterrupt:
-        print("\n仿真停止")
+        print("\nSimulation stopped")
 
 
 if __name__ == "__main__":

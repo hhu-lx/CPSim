@@ -6,10 +6,10 @@ from .base import ElectricityPricingStrategy
 
 
 class OPFElectricityPricing(ElectricityPricingStrategy):
-    # 默认电价
-    DEFAULT_PRICE = 0.5   # 元/kWh
+    # Implementation note.
+    DEFAULT_PRICE = 0.5   # Implementation note.
 
-    # 单位转换系数
+    # Implementation note.
     MWH_TO_KWH = 0.001
 
     def __init__(self, default_price: float = None):
@@ -24,33 +24,33 @@ class OPFElectricityPricing(ElectricityPricingStrategy):
         system_extra_load_mw: float = 0.0,
     ) -> float:
 
-        #  检查 res_bus 是否存在
+        # Implementation note.
         if not hasattr(network, 'res_bus') or network.res_bus is None:
             return self.DEFAULT_PRICE
 
         if len(network.res_bus) == 0:
             return self.DEFAULT_PRICE
 
-        #  检查 lam_p 列是否存在
+        # Implementation note.
         if 'lam_p' not in network.res_bus.columns:
             return self.DEFAULT_PRICE
 
-        #  检查 bus_id 是否有效
+        # Implementation note.
         if bus_id not in network.res_bus.index:
             return self.DEFAULT_PRICE
 
-        #  读取 LMP 值
+        # Implementation note.
         lam_p = network.res_bus.loc[bus_id, 'lam_p']
 
         if pd.isna(lam_p):
             return self.DEFAULT_PRICE
 
-        #  单位转换
+        # Implementation note.
         price = float(lam_p) * self.MWH_TO_KWH
 
-        #  合理性检查
-        # 若结果异常（如极大值），回退到默认值
-        if abs(price) > 10.0:   # 超过 10 元/kWh 视为异常
+        # Implementation note.
+        # Implementation note.
+        if abs(price) > 10.0:   # Implementation note.
             return self.DEFAULT_PRICE
 
         return price

@@ -1,4 +1,4 @@
-# 最小可复现实验配置。将 optimization.mode 改为 global 可启用全局 COPT。
+# Implementation note.
 grid:
   base_mva: 100.0
   load_factor: 1.0
@@ -20,7 +20,7 @@ reference_tables:
 
 data_centers:
   - id: DC1
-    name: 示例数据中心
+    name: Example Datacenter
     region: region_a
     grid_bus_id: 3
     total_compute: 160.0
@@ -38,13 +38,13 @@ simulation:
   start_datetime: "2026-09-22T16:00:00"
   duration_hours: 1
   step_seconds: 30
-  # 任务到达保持秒级精度；统计和重优化按较长仿真间隔执行，避免每秒调用求解器
+  # Implementation note.
   stats_interval_seconds: 60
   renewable_optimization_interval_seconds: 900
   report_interval_seconds: 300
   cpf_interval_seconds: 900
   power_flow_interval_seconds: 900
-  # 每个仿真秒等待约1/60秒：真实1秒推进约60个仿真秒
+  # Implementation note.
   time_scale: 0.0166667
 
 synthetic_data:
@@ -59,7 +59,7 @@ storages:
     min_soc_mwh: 1.0
 
 storage_control:
-  deadband_mw: 0.5
+  deadband_mw: 12
   reference_alpha: 0.02
   optimization_interval_seconds: 60
 

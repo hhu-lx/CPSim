@@ -10,7 +10,7 @@ def run_continuation_power_flow(
     max_steps: int = 100,
     min_v_limit: float = 0.7
 ) -> Dict:
-    """执行连续潮流分析，并区分潮流收敛和是否找到电压临界点。"""
+    """Implementation documentation."""
     original_load_p = network.load['p_mw'].copy()
     original_load_q = network.load['q_mvar'].copy()
     pv_curve: List[Tuple[float, float]] = []
@@ -22,8 +22,8 @@ def run_continuation_power_flow(
     search_limit_reached = False
     failure_lambda = None
 
-    # 把外部电网平衡节点从最低电压监测中排除，避免固定的 slack 电压
-    # 掩盖其余母线电压随负荷增加而发生的变化。
+    # Implementation note.
+    # Implementation note.
     slack_buses = set(network.ext_grid.loc[network.ext_grid.in_service, "bus"].tolist()) if len(network.ext_grid) else set()
     monitored_buses = [bus for bus in network.bus.index if bus not in slack_buses]
 
@@ -32,7 +32,7 @@ def run_continuation_power_flow(
             pp.runpp(network, numba=False, enforce_q_lims=True)
             power_flow_converged = True
         except Exception as exc:
-            print(f"CPF 初始潮流失败: {exc}")
+            print(f"CPF initial power flow failed: {exc}")
             return {
                 "lambda_critical": 1.0,
                 "voltage_margin_pct": 0.0,
@@ -65,11 +65,11 @@ def run_continuation_power_flow(
                     stop_reason = "voltage_limit_reached"
                     break
             except Exception as exc:
-                # 增载过程中失败意味着接近可承载边界，不代表当前运行点失败。
+                # Implementation note.
                 critical_point_found = True
                 stop_reason = "power_flow_failure"
                 failure_lambda = lam
-                print(f"CPF 负荷倍数 {lam:.2f} 潮流失败: {exc}")
+                print(f"CPF load multiplier {lam:.2f} power-flow failed: {exc}")
                 break
         else:
             search_limit_reached = True

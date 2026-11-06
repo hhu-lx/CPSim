@@ -25,23 +25,23 @@ class ExcelTaskLoader:
 
     def _load_data(self):
         if not self.file_path.exists():
-            raise FileNotFoundError(f"文件不存在: {self.file_path}")
+            raise FileNotFoundError(f"File not found: {self.file_path}")
         if self.file_path.suffix.lower() in {".csv", ".tsv"}:
             self.raw_data = pd.read_csv(self.file_path, dtype=str)
         else:
             self.raw_data = pd.read_excel(self.file_path, dtype=str)
-        print(f"加载数据: {len(self.raw_data)} 行")
-        print(f"   列名: {list(self.raw_data.columns)}")
+        print(f"Loaded data: {len(self.raw_data)} rows")
+        print(f"   Columns: {list(self.raw_data.columns)}")
 
     def _auto_detect_columns(self, columns) -> Dict[str, str]:
         col_list = list(columns)
         col_map = {}
 
-        # 情况1：列名前10个是 A, B, C...
-        # 注意：只检查前10列，因为第11列可能是中文列名
+        # Implementation note.
+        # Implementation note.
         first_10 = [str(c).strip().lstrip("\ufeff") for c in col_list[:10]]
         if all(c in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] for c in first_10[:4]) and first_10[4] == 'E':
-            print(" 检测到字母列名，按位置映射...")
+            print(" Letter-based columns detected; mapping by position...")
             pos_map = {
                 'job_name': 0, 'task_name': 1, 'inst_num': 2, 'status': 3,
                 'start_time': 4, 'end_time': 5, 'plan_cpu': 6, 'plan_mem': 7,
@@ -58,7 +58,7 @@ class ExcelTaskLoader:
                 if label in col_list:
                     col_map[key] = label
             for col in col_list:
-                if str(col).strip() in {'算力消耗', 'compute'}:
+                if str(col).strip() in {'compute消耗', 'compute'}:
                     col_map['compute'] = col
             # Letter-labelled exports may still append canonical columns such
             # as the optional user-selected data centre.
@@ -74,8 +74,8 @@ class ExcelTaskLoader:
                 },
                 'submitted_at': {'submitted_at', '提交时间', '提交时间秒'},
                 'duration_seconds': {'duration_seconds', '持续时长秒', '任务时长秒', '持续时间秒'},
-                'max_wait_seconds': {'max_wait_seconds', 'max_wait_sec', '最长等待秒', '最大等待秒', '允许延迟秒'},
-                'max_wait_hours': {'max_wait_hours', 'max_wait', '可延后时间', '最大等待小时', '允许延迟小时'},
+                'max_wait_seconds': {'max_wait_seconds', 'max_wait_sec', '最长wait秒', '最大wait秒', '允许延迟秒'},
+                'max_wait_hours': {'max_wait_hours', 'max_wait', '可延后时间', '最大wait小时', '允许延迟小时'},
             }
             for col in col_list:
                 normalized = str(col).strip().lstrip("\ufeff").lower()
@@ -106,8 +106,8 @@ class ExcelTaskLoader:
                 'user_specified_data_center', '指定数据中心', '用户指定数据中心',
                 '数据中心', 'data_center', 'data_center_id',
             ],
-            'max_wait_seconds': ['max_wait_seconds', 'max_wait_sec', '最长等待秒', '最大等待秒', '允许延迟秒'],
-            'max_wait_hours': ['max_wait_hours', 'max_wait', '可延后时间', '最大等待小时', '允许延迟小时'],
+            'max_wait_seconds': ['max_wait_seconds', 'max_wait_sec', '最长wait秒', '最大wait秒', '允许延迟秒'],
+            'max_wait_hours': ['max_wait_hours', 'max_wait', '可延后时间', '最大wait小时', '允许延迟小时'],
             'submitted_at': ['submitted_at', '提交时间', '提交时间秒'],
             'duration_seconds': ['duration_seconds', '持续时长秒', '任务时长秒', '持续时间秒'],
         }
@@ -128,17 +128,17 @@ class ExcelTaskLoader:
         return col_map
 
     def _find_compute_column(self) -> Optional[str]:
-        #查找算力消耗列
+        # Implementation note.
         for col in self.raw_data.columns:
             col_str = str(col).strip()
-            if '算力' in col_str or '消耗' in col_str:
+            if 'compute' in col_str or '消耗' in col_str:
                 return col
         if len(self.raw_data.columns) >= 11:
             return self.raw_data.columns[10]
         return None
 
     def _to_float(self, value) -> Optional[float]:
-        #安全转换为浮点数，失败返回 None
+        # Implementation note.
         if pd.isna(value) or value == '' or value is None:
             return None
         try:
@@ -159,9 +159,9 @@ class ExcelTaskLoader:
         self.tasks = []
         df = self.raw_data.copy()
         col_map = self._auto_detect_columns(df.columns)
-        print(f" 列映射结果: {col_map}")  # 调试用
+        print(f" Column mapping: {col_map}")  # Debug output
 
-        # 获取列名
+        # Implementation note.
         start_col = col_map.get('start_time')
         end_col = col_map.get('end_time')
         status_col = col_map.get('status')
@@ -180,32 +180,32 @@ class ExcelTaskLoader:
         submitted_at_col = col_map.get('submitted_at')
         duration_seconds_col = col_map.get('duration_seconds')
 
-        # 检查关键列是否存在
+        # Implementation note.
         if start_col is None:
-            raise ValueError("未找到 start_time 列，请检查列名映射")
+            raise ValueError("start_time column not found; check the column mapping")
 
-        # 将时间列转换为数值
+        # Implementation note.
         df[start_col] = pd.to_numeric(df[start_col], errors='coerce')
         if end_col and end_col in df.columns:
             df[end_col] = pd.to_numeric(df[end_col], errors='coerce')
-        # 其他数值列也转换
+        # Implementation note.
         for col in [plan_gpu_col, plan_cpu_col]:
             if col and col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
-        # 按时间排序
+        # Implementation note.
         df_sorted = df.dropna(subset=[start_col]).sort_values(by=start_col)
 
         if df_sorted.empty:
-            raise ValueError("没有有效的 start_time 数据")
+            raise ValueError("No valid start_time data")
 
-        # 获取首个有效时间
+        # Implementation note.
         first_valid_time = df_sorted.iloc[0][start_col]
-        print(f"首个任务时间戳: {first_valid_time}")
+        print(f"First task timestamp: {first_valid_time}")
 
         task_count = 0
         for idx, row in df_sorted.iterrows():
-            # 状态过滤
+            # Implementation note.
             status = str(row.get(status_col, '')).strip() if status_col else ''
             if status not in self.VALID_STATUSES:
                 continue
@@ -214,10 +214,10 @@ class ExcelTaskLoader:
             if pd.isna(start_ts) or start_ts == '':
                 continue
 
-            # 计算提交时间
+            # Implementation note.
             submitted_hours = (start_ts - first_valid_time) / 3600
 
-            # 计算运行时长
+            # Implementation note.
             if duration_seconds_col and pd.notna(row.get(duration_seconds_col)):
                 duration_hours = (self._to_float(row.get(duration_seconds_col)) or 3600.0) / 3600.0
             elif end_col and end_col in row.index:
@@ -235,7 +235,7 @@ class ExcelTaskLoader:
             if duration_hours > 24:
                 duration_hours = 24.0
 
-            # GPU信息
+            # Implementation note.
             plan_gpu = row.get(plan_gpu_col, 0) if plan_gpu_col else 0
             if pd.isna(plan_gpu):
                 plan_gpu = 0
@@ -244,7 +244,7 @@ class ExcelTaskLoader:
                 if required_gpu_type_col else row.get(gpu_type_col, '')
             ).strip()
 
-            # 计算算力需求
+            # Implementation note.
             if plan_gpu and plan_gpu > 0:
                 required_compute = (plan_gpu / 100.0) * 20.0
             elif compute_col and compute_col in row.index:
@@ -256,7 +256,7 @@ class ExcelTaskLoader:
             else:
                 required_compute = 1.0
 
-            # 推断任务类型
+            # Implementation note.
             if plan_gpu and plan_gpu > 0 and gpu_type in self.GPU_TYPE_MAP:
                 task_type = self.GPU_TYPE_MAP[gpu_type]
             elif plan_gpu and plan_gpu > 0:
@@ -264,7 +264,7 @@ class ExcelTaskLoader:
             else:
                 task_type = TaskType.GENERAL
 
-            # 创建任务
+            # Implementation note.
             data_size = self._to_float(row.get(data_size_col)) if data_size_col else None
             if data_size is None:
                 data_size = get_data_size_by_task_type(
@@ -301,15 +301,15 @@ class ExcelTaskLoader:
                     else None
                 ),
             )
-            # 附加元数据
+            # Implementation note.
             task.gpu_type = gpu_type
             task.plan_gpu = plan_gpu
             self.tasks.append(task)
             task_count += 1
 
-        print(f" 成功加载 {task_count} 个任务")
+        print(f" Successfully loaded {task_count} tasks")
         if self.tasks:
-            print(f"   提交时间范围: {self.tasks[0].submitted_at:.0f}s ~ {self.tasks[-1].submitted_at:.0f}s")
+            print(f"   Submission time range: {self.tasks[0].submitted_at:.0f}s ~ {self.tasks[-1].submitted_at:.0f}s")
         return self.tasks
 
 
@@ -323,6 +323,6 @@ def load_tasks_from_excel(file_path: str = None, filename: str = "data_updated.x
             if xlsx_files:
                 file_path = xlsx_files[0]
             else:
-                raise FileNotFoundError(f"在 {config_dir} 下未找到 Excel 文件")
+                raise FileNotFoundError(f"in {config_dir}: no Excel file found")
     loader = ExcelTaskLoader(str(file_path))
     return loader.load_tasks(region, time_compression=time_compression)

@@ -22,11 +22,11 @@ from src.optimization.renewable_forecast import ShortTermRenewableForecaster
 
 
 class PandapowerAdapter:
-    """IEEE 39节点系统适配器（普通潮流 + 连续潮流）"""
+    """Implementation documentation."""
 
-    # ===== 碳参数 =====
+    # Implementation note.
     EMISSION_FACTORS = {
-        'coal': 0.90,      # 吨CO₂/MWh
+        'coal': 0.90,      # Implementation note.
         'gas': 0.45,
         'hydro': 0.0,
         'nuclear': 0.0,
@@ -34,7 +34,7 @@ class PandapowerAdapter:
         'solar': 0.0,
     }
 
-    # 机组类型映射（按 Bus ID 推断）
+    # Implementation note.
     GEN_TYPE_MAP = {
         30: 'hydro', 31: 'coal', 32: 'coal', 33: 'gas', 34: 'gas',
         35: 'coal', 36: 'hydro', 37: 'coal', 38: 'nuclear', 39: 'gas',
@@ -66,7 +66,7 @@ class PandapowerAdapter:
         electricity_strategy: Optional[ElectricityPricingStrategy] = None,
         verbose: bool = False
     ):
-        # 优先加载用户 JSON 拓扑；未提供时使用项目内置 IEEE39 JSON 模板。
+        # Implementation note.
         if topology is None and topology_file:
             topology = load_topology(topology_file)
         if topology is None:
@@ -83,7 +83,7 @@ class PandapowerAdapter:
         self.network, self.bus_map = build_pandapower_network(topology)
         self._topology_static_load_mw = float(self.network.load["p_mw"].sum()) if len(self.network.load) else 0.0
 
-        # 时序数据加载器
+        # Implementation note.
         self.load_loader = load_loader
         # When a load time series is supplied, it is the complete background
         # demand for the simulation.  The topology's load values are retained
@@ -133,14 +133,14 @@ class PandapowerAdapter:
         if self.pv_capacity_mw <= 0 or self.wind_capacity_mw <= 0:
             raise ValueError("renewable capacities must be positive")
 
-        # 电价策略（默认边际电价模拟）
+        # Implementation note.
         self.electricity_strategy = electricity_strategy or MarginalElectricityPricing(
             base_price=0.5,
             sensitivity=0.10,
             scale=1000.0
         )
 
-        # 动态元素索引
+        # Implementation note.
         self.dynamic_load_indices = []
         self.dynamic_gen_indices = []
         self.dynamic_sgen_indices = []
@@ -148,8 +148,8 @@ class PandapowerAdapter:
         self.renewable_gen_available_mw: Dict[str, Dict[int, float]] = {"wind": {}, "pv": {}}
         self.renewable_available_mw: Dict[str, float] = {"wind": 0.0, "pv": 0.0}
         self.renewable_dispatched_mw: Dict[str, float] = {"wind": 0.0, "pv": 0.0}
-        # 拓扑机组仍是可调机组；基础发电文件是系统级固定注入，
-        # 不再作为每台机组额定出力的缩放系数。
+        # Implementation note.
+        # Implementation note.
         self._base_generation_nominal = self.network.gen["p_mw"].copy()
         self.use_topology_generators = bool(use_topology_generators)
         external_grids = topology.get("external_grids", [])
@@ -179,24 +179,24 @@ class PandapowerAdapter:
         self._pre_candidate_dispatch = None
         self.compute_load_indices = []
 
-        # 算力额外负荷（节点 → MW）
+        # Implementation note.
         self.extra_loads: Dict[int, float] = {}
         # Positive storage power discharges into the grid; negative power charges.
         self.storage_powers: Dict[int, float] = {}
 
-        # 负荷节点（IEEE 39 中 Bus 1-29 有负荷）
+        # Implementation note.
         self.load_buses = [int(bus) for bus in self.network.load.bus.tolist()]
         if not self.load_buses:
             self.load_buses = [int(bus["id"]) for bus in topology.get("buses", [])]
 
-        # 保存原始负荷分布
+        # Implementation note.
         self._save_load_distribution()
         self._topology_load_indices = list(self.network.load.index)
         if self._uses_load_timeseries and self._topology_load_indices:
             self.network.load.loc[self._topology_load_indices, "p_mw"] = 0.0
             self.network.load.loc[self._topology_load_indices, "q_mvar"] = 0.0
 
-        # 当前仿真时刻
+        # Implementation note.
         self.current_second = 0
         self._last_time_series_load_mw = 0.0
         self._last_background_load_mw = 0.0
@@ -206,28 +206,28 @@ class PandapowerAdapter:
         self._last_pv_generation_mw = None
         self._power_flow_valid = False
 
-        # 节点碳强度缓存（每步更新）
+        # Implementation note.
         self.bus_carbon_intensity: Dict[int, float] = {}
 
-        # 详细日志
+        # Implementation note.
         self.verbose = verbose
 
-        # 耗时统计
+        # Implementation note.
         self.last_pp_time = 0.0
         self.last_cpf_time = 0.0
 
-        # 打印配置摘要
-        print(f"⚡ 电网拓扑适配器初始化: {topology.get('name', 'custom')}")
-        print(f"   基准容量: {self.base_mva} MVA")
-        print(f"   光伏接入节点: Bus {self.pv_bus}")
-        print(f"   风电接入节点: Bus {self.wind_bus}")
-        print(f"   光伏/风电装机: {self.pv_capacity_mw:.1f}/{self.wind_capacity_mw:.1f} MW")
-        print(f"   电价策略: {self.electricity_strategy.__class__.__name__}")
+        # Implementation note.
+        print(f"⚡ Grid topology adapter initialized: {topology.get('name', 'custom')}")
+        print(f"   Base capacity: {self.base_mva} MVA")
+        print(f"   PV connection bus: Bus {self.pv_bus}")
+        print(f"   Wind connection bus: Bus {self.wind_bus}")
+        print(f"   PV/Wind capacity: {self.pv_capacity_mw:.1f}/{self.wind_capacity_mw:.1f} MW")
+        print(f"   Pricing strategy: {self.electricity_strategy.__class__.__name__}")
 
-    #  初始化辅助方法
+    # Implementation note.
 
     def _save_load_distribution(self):
-        """保存原始负荷分布比例（用于总负荷按比例分配）"""
+        """Implementation documentation."""
         if len(self.network.load) == 0:
             self.load_distribution = np.ones(len(self.load_buses)) / len(self.load_buses)
             return
@@ -238,10 +238,10 @@ class PandapowerAdapter:
         else:
             self.load_distribution = np.ones(len(load_p_mw)) / len(load_p_mw)
 
-    #  动态元素管理
+    # Implementation note.
 
     def _clear_dynamic_elements(self):
-        """清除所有动态添加的负荷和发电机"""
+        """Implementation documentation."""
         if self.dynamic_load_indices:
             self.network.load.drop(self.dynamic_load_indices, inplace=True, errors='ignore')
             self.dynamic_load_indices = []
@@ -254,10 +254,10 @@ class PandapowerAdapter:
             self.network.sgen.drop(self.dynamic_sgen_indices, inplace=True, errors='ignore')
             self.dynamic_sgen_indices = []
 
-    #  时序数据更新
+    # Implementation note.
 
     def update_time_series(self, second: int):
-        """根据当前秒数更新背景负荷、光伏、风电"""
+        """Implementation documentation."""
         self.current_second = second
         self._clear_dynamic_elements()
         self._last_pv_generation_mw = None
@@ -267,7 +267,7 @@ class PandapowerAdapter:
         self.renewable_gen_indices = {}
         self.renewable_gen_available_mw = {"wind": {}, "pv": {}}
 
-        # 1. 背景负荷（标幺值 × base_mva → MW）
+        # Implementation note.
         if self.load_loader is not None:
             load_pu = float(self.load_loader.get_value_at_second(second))
             total_load_mw = self._load_profile_to_mw(load_pu)
@@ -276,10 +276,10 @@ class PandapowerAdapter:
         else:
             self._last_background_load_mw = 0.0
 
-        # 2. 算力负荷
+        # Implementation note.
         self._apply_compute_loads()
 
-        # 2.5 储能：充电是节点负荷，放电是静态发电注入
+        # Implementation note.
         self._apply_storage_powers()
 
         # 3. Topology-bound node MW profiles take precedence.  Each file is
@@ -321,7 +321,7 @@ class PandapowerAdapter:
         self._last_time_series_generation_mw = generation
 
     def _apply_base_generation(self, second: int):
-        """将系统级基础发电标幺值转换为固定 MW 注入。"""
+        """Implementation documentation."""
         self._last_base_generation_mw = 0.0
         if self.base_generation_loader is None:
             return
@@ -356,7 +356,7 @@ class PandapowerAdapter:
             self.dynamic_sgen_indices.append(idx)
 
     def _apply_background_load(self, total_load_mw: float):
-        """按拓扑原始比例写入用户负荷时序的当前总量。"""
+        """Implementation documentation."""
         if self._uses_load_timeseries and self._topology_load_indices:
             for i, index in enumerate(self._topology_load_indices):
                 if i >= len(self.load_distribution):
@@ -370,7 +370,7 @@ class PandapowerAdapter:
             if i < len(self.load_distribution):
                 p_mw = total_load_mw * self.load_distribution[i]
                 if p_mw > 0.001:
-                    q_mvar = p_mw * 0.3287  # 功率因数 0.95
+                    q_mvar = p_mw * 0.3287  # Implementation note.
                     idx = pp.create_load(self.network, bus, p_mw=p_mw, q_mvar=q_mvar)
                     self.dynamic_load_indices.append(idx)
 
@@ -392,7 +392,7 @@ class PandapowerAdapter:
         return nominal * value / reference
 
     def _apply_compute_loads(self):
-        """将 extra_loads 中的算力负荷写入网络"""
+        """Implementation documentation."""
         for bus_id, load_mw in self.extra_loads.items():
             bus_id = self._map_bus_id(bus_id)
             if load_mw > 0.001:
@@ -412,7 +412,7 @@ class PandapowerAdapter:
                 self.dynamic_sgen_indices.append(idx)
 
     def _add_renewable_gen(self, bus_id: int, power_mw: float, source: str):
-        """添加新能源发电机（功率单位：MW）"""
+        """Implementation documentation."""
         bus_id = self._map_bus_id(bus_id)
         if power_mw > 0.001:
             idx = pp.create_gen(
@@ -431,10 +431,10 @@ class PandapowerAdapter:
         if secondary_bus is not None:
             self._add_renewable_gen(secondary_bus, power_mw * ratio, source)
 
-    #  算力负荷接口
+    # Implementation note.
 
     def update_compute_load(self, bus_id: int, load_mw: float):
-        """更新指定节点的算力负荷"""
+        """Implementation documentation."""
         self.extra_loads[bus_id] = load_mw
 
     def replace_compute_loads(self, loads_by_bus: Dict[int, float]) -> None:
@@ -836,11 +836,11 @@ class PandapowerAdapter:
         return self.storage_powers.get(bus_id, 0.0)
 
     # =========================================================
-    #  潮流计算
+    # Implementation note.
     # =========================================================
 
     def _prepare_compute_loads(self):
-        """准备算力负荷（删除旧的，应用新的）"""
+        """Implementation documentation."""
         if self.compute_load_indices:
             self.network.load.drop(self.compute_load_indices, inplace=True, errors='ignore')
             self.dynamic_load_indices = [
@@ -862,20 +862,20 @@ class PandapowerAdapter:
             self._power_flow_valid = True
 
             if self.verbose:
-                print(f"[runpp] {self.last_pp_time:.3f}s (秒 {self.current_second})")
+                print(f"[runpp] {self.last_pp_time:.3f}s (second {self.current_second})")
 
         except Exception as e:
-            print(f"潮流计算不收敛 (秒 {self.current_second}): {e}")
+            print(f"Power flow did not converge (second {self.current_second}): {e}")
 
-    #  碳强度计算
+    # Implementation note.
 
     def _compute_bus_carbon_intensity(self):
-        """计算节点碳强度（全网平均，kgCO₂/kWh）"""
+        """Implementation documentation."""
         if len(self.network.res_gen) == 0:
             self.bus_carbon_intensity = {bus: 0.5 for bus in self.network.bus.index}
             return
 
-        total_emission = 0.0   # 吨CO₂/h
+        total_emission = 0.0   # Implementation note.
         total_gen = 0.0        # MW
 
         for idx in self.network.gen.index:
@@ -893,14 +893,14 @@ class PandapowerAdapter:
         avg_intensity = total_emission / total_gen if total_gen > 0 else 0.5
         self.bus_carbon_intensity = {bus: avg_intensity for bus in self.network.bus.index}
 
-    #  查询接口
+    # Implementation note.
 
     def get_bus_carbon_intensity(self, bus_id: int) -> float:
-        """获取节点碳强度（kgCO₂/kWh）"""
+        """Implementation documentation."""
         return self.bus_carbon_intensity.get(bus_id, 0.5)
 
     def get_bus_marginal_price(self, bus_id: int) -> float:
-        """获取节点边际电价（元/kWh），使用策略计算"""
+        """Implementation documentation."""
         extra_load = self.extra_loads.get(bus_id, 0.0)
         system_extra_load = sum(
             max(0.0, float(load_mw))
@@ -911,13 +911,13 @@ class PandapowerAdapter:
         )
 
     def get_bus_voltage(self, bus_id: int) -> float:
-        """获取节点电压标幺值"""
+        """Implementation documentation."""
         if bus_id in self.network.res_bus.index:
             return self.network.res_bus.loc[bus_id, 'vm_pu']
         return 1.0
 
     def get_total_load(self) -> float:
-        """获取当前总负荷（MW）"""
+        """Implementation documentation."""
         # This cache contains the current background profile, compute loads
         # and storage charging load, and remains stable after result tables
         # are rebuilt.
@@ -970,7 +970,7 @@ class PandapowerAdapter:
         )
 
     def get_total_generation(self) -> float:
-        """获取当前总发电（MW）"""
+        """Implementation documentation."""
         total_load = self.get_total_load()
         # Build the displayed total from the same dispatch telemetry used by
         # the breakdown.  In particular, renewable values must be the actual
@@ -1021,7 +1021,7 @@ class PandapowerAdapter:
         }
 
     def get_total_emission(self) -> float:
-        """获取当前全网总排放率（吨CO₂/h）"""
+        """Implementation documentation."""
         if len(self.network.res_gen) == 0:
             return 0.0
         total = 0.0
@@ -1037,7 +1037,7 @@ class PandapowerAdapter:
         return total
 
     def get_renewable_generation(self) -> Dict[str, Optional[float]]:
-        """当前时序输入对应的风电、光伏出力，未配置时返回 None。"""
+        """Implementation documentation."""
         return {
             "wind_mw": self._last_wind_generation_mw,
             "pv_mw": self._last_pv_generation_mw,
@@ -1238,7 +1238,7 @@ class PandapowerAdapter:
         return {"status": "curtailed", "dispatch_factor": lower}
 
     def get_grid_exchange_mw(self) -> Optional[float]:
-        """外部电网的实际有功注入；正值为购电，负值为向外送电。"""
+        """Implementation documentation."""
         if not self._power_flow_valid or not len(self.network.res_ext_grid):
             return None
         return float(self.network.res_ext_grid["p_mw"].sum())
@@ -1258,7 +1258,7 @@ class PandapowerAdapter:
         return line_loss + trafo_loss
 
     def get_reserve_capacity_mw(self) -> Optional[float]:
-        """可调常规机组的剩余有功上限，不把平衡电网或新能源算作备用。"""
+        """Implementation documentation."""
         if not self._power_flow_valid or not len(self.network.gen):
             return None
         headroom = 0.0
@@ -1317,7 +1317,7 @@ class PandapowerAdapter:
         return {"max_loading_pct": max_loading, "overloaded_lines": overloaded, "status": status}
 
     def get_generation_by_type(self) -> Dict[str, float]:
-        """按机组类型汇总当前发电量（MW）"""
+        """Implementation documentation."""
         result = {k: 0.0 for k in self.EMISSION_FACTORS.keys()}
         if len(self.network.res_gen) == 0:
             return result
@@ -1333,10 +1333,10 @@ class PandapowerAdapter:
         return result
 
     def get_network(self):
-        """返回底层 pandapower 网络对象"""
+        """Implementation documentation."""
         return self.network
 
-    #  连续潮流分析
+    # Implementation note.
 
     def analyze_voltage_stability(
         self,

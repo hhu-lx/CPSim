@@ -9,6 +9,7 @@ import json
 import tempfile
 import zipfile
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import parse_qs
 from xml.sax.saxutils import escape
@@ -42,28 +43,28 @@ def _parse_config(raw: bytes, filename: str) -> dict[str, Any]:
     try:
         value = yaml.safe_load(raw.decode("utf-8-sig")) if filename.lower().endswith((".yaml", ".yml")) else json.loads(raw.decode("utf-8-sig"))
     except (UnicodeDecodeError, json.JSONDecodeError, yaml.YAMLError) as exc:
-        raise ValueError(f"用户配置文件无法解析: {exc}") from exc
+        raise ValueError(f"Unable to parse user configuration file: {exc}") from exc
     if not isinstance(value, dict):
-        raise ValueError("用户配置数据必须是对象")
+        raise ValueError("User configuration data must be an object")
     return value
 
 
 def _parse_topology(raw: bytes, filename: str) -> dict[str, Any]:
     if not filename or not filename.lower().endswith(".json"):
-        raise ValueError("电力拓扑必须使用 JSON 文件")
+        raise ValueError("Power topology must be a JSON file")
     if len(raw) > 5 * 1024 * 1024:
-        raise ValueError("电力拓扑文件不能超过 5 MB")
+        raise ValueError("Power topology file must not exceed 5 MB")
     try:
         topology = json.loads(raw.decode("utf-8-sig"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ValueError(f"电力拓扑 JSON 无法解析: {exc}") from exc
+        raise ValueError(f"Unable to parse power topology JSON: {exc}") from exc
     validate_topology(topology)
     # Exercise pandapower construction here so schema values that are
     # structurally present but unusable fail before the simulation starts.
     try:
         build_pandapower_network(topology)
     except (KeyError, TypeError, ValueError) as exc:
-        raise ValueError(f"电力拓扑无法构建: {exc}") from exc
+        raise ValueError(f"Unable to build power topology: {exc}") from exc
     return topology
 
 
@@ -73,7 +74,7 @@ def _parse_pricing(raw: bytes) -> dict[str, Any]:
         reader = csv.DictReader(io.StringIO(text))
         required = {"start_hour", "end_hour", "price"}
         if not reader.fieldnames or not required.issubset(set(reader.fieldnames)):
-            raise ValueError("峰谷电价 CSV 必须包含 start_hour,end_hour,price 字段")
+            raise ValueError("Time-of-use pricing CSV must contain start_hour,end_hour,price fields")
         periods = []
         for row in reader:
             if not row or not any(str(v or "").strip() for v in row.values()):
@@ -81,14 +82,14 @@ def _parse_pricing(raw: bytes) -> dict[str, Any]:
             periods.append({"start_hour": float(row["start_hour"]), "end_hour": float(row["end_hour"]), "price": float(row["price"])})
         return FixedTimeOfUsePricing(periods).as_dict()
     except (UnicodeDecodeError, ValueError, TypeError) as exc:
-        if isinstance(exc, ValueError) and str(exc).startswith("峰谷电价"):
+        if isinstance(exc, ValueError) and str(exc).startswith("Time-of-use pricing"):
             raise
-        raise ValueError(f"峰谷电价 CSV 无效: {exc}") from exc
+        raise ValueError(f"Invalid time-of-use pricing CSV: {exc}") from exc
 
 
 def _validated_custom_dispatch(config: dict[str, Any] | None) -> dict[str, Any]:
     if not isinstance(config, dict):
-        raise ValueError("自定义调度策略必须是 JSON/YAML 对象")
+        raise ValueError("Custom dispatch strategy must be a JSON/YAML object")
     unknown = set(config) - {"name", "weights", "allow_cross_region"}
     if unknown:
         raise ValueError(f"unknown custom dispatch field: {sorted(unknown)[0]}")
@@ -105,7 +106,7 @@ def _validated_custom_dispatch(config: dict[str, Any] | None) -> dict[str, Any]:
 
 def _validated_custom_pricing(config: dict[str, Any] | None) -> dict[str, Any]:
     if not isinstance(config, dict):
-        raise ValueError("自定义电价策略必须是 JSON/YAML 对象")
+        raise ValueError("Custom pricing strategy must be a JSON/YAML object")
     allowed = {
         "name", "base_price", "local_load_coefficient", "compute_load_coefficient",
         "voltage_deviation_coefficient", "minimum_price", "maximum_price",
@@ -127,7 +128,7 @@ def _validated_custom_pricing(config: dict[str, Any] | None) -> dict[str, Any]:
 
 def _validated_custom_objective(config: dict[str, Any] | None) -> dict[str, Any]:
     if not isinstance(config, dict):
-        raise ValueError("自定义优化目标必须是 JSON/YAML 对象")
+        raise ValueError("Custom optimization objective must be a JSON/YAML object")
     unknown = set(config) - {"name", "weights"}
     if unknown:
         raise ValueError(f"unknown custom objective field: {sorted(unknown)[0]}")
@@ -235,7 +236,7 @@ class FrontendSession:
             and effective_custom_objective
             and effective_custom_objective["weights"].get("delay", 0.0) > 0.0
         ):
-            raise ValueError("启发式模式不参与算电协同，自定义目标的时延权重必须为 0")
+            raise ValueError("Baseline mode does not coordinate computing and power; custom objective delay weight must be 0")
         if objective_strategy:
             optimization["objective"] = "weighted" if objective_strategy == "custom" else objective_strategy
         if objective_strategy == "weighted":
@@ -331,7 +332,7 @@ class FrontendSession:
 
     def start(self) -> None:
         if self.configuration is None:
-            raise RuntimeError("请先应用配置")
+            raise RuntimeError("Apply the configuration first")
         if self.engine is not None and getattr(self.engine, "running", False):
             return
         if self.engine_factory is not None:
@@ -407,13 +408,13 @@ def _session(request: Request) -> FrontendSession:
 async def apply_config(request: Request):
     session = _session(request)
     if session.engine is not None and getattr(session.engine, "running", False):
-        raise HTTPException(status_code=409, detail="请先结束当前仿真，再应用新配置")
+        raise HTTPException(status_code=409, detail="Stop the current simulation before applying a new configuration")
     fields, uploads = await _request_parts(request)
     dispatch_strategy = fields.get("dispatch_strategy")
     pricing_strategy = fields.get("pricing_strategy", "fixed_tou")
     optimization_model = fields.get("optimization_model", "heuristic")
     objective_strategy = fields.get("objective_strategy", "min_cost")
-    topology = fields.get("topology", "IEEE 39节点系统")
+    topology = fields.get("topology", "IEEE 39-bus system")
     pricing_csv = uploads.get("pricing_csv")
     user_config = uploads.get("user_config")
     task_file = uploads.get("task_file")
@@ -422,9 +423,9 @@ async def apply_config(request: Request):
     custom_objective_file = uploads.get("custom_objective_file")
     topology_file = uploads.get("topology_file")
     if pricing_strategy == "fixed_tou" and pricing_csv is None:
-        raise HTTPException(status_code=422, detail="请导入峰谷电价 CSV 文件")
+        raise HTTPException(status_code=422, detail="Import a time-of-use pricing CSV file")
     if pricing_csv is not None and (not pricing_csv["filename"] or not pricing_csv["filename"].lower().endswith(".csv")):
-        raise HTTPException(status_code=422, detail="峰谷电价必须使用 CSV 文件")
+        raise HTTPException(status_code=422, detail="Time-of-use pricing must use a CSV file")
     try:
         pricing = _parse_pricing(pricing_csv["content"]) if pricing_csv is not None else {}
         parsed_config = None
@@ -446,7 +447,7 @@ async def apply_config(request: Request):
             files["custom_objective_file"] = {"filename": custom_objective_file["filename"], "content": custom_objective}
         if user_config is not None:
             if not user_config["filename"] or not user_config["filename"].lower().endswith((".yaml", ".yml", ".json")):
-                raise ValueError("用户配置数据必须是 YAML、YML 或 JSON 文件")
+                raise ValueError("User configuration data must be a YAML, YML, or JSON file")
             parsed_config = _parse_config(user_config["content"], user_config["filename"])
             files["user_config"] = {"filename": user_config["filename"], "content": parsed_config}
         if task_file is not None:
@@ -482,7 +483,7 @@ def simulation_status(request: Request):
 def export_results(request: Request, format: str = "json"):
     session = _session(request)
     if session.configuration is None:
-        raise HTTPException(status_code=409, detail="请先应用配置")
+        raise HTTPException(status_code=409, detail="Apply the configuration first")
     status_payload = session.status()
     engine = session.engine
     history = (
@@ -498,8 +499,8 @@ def export_results(request: Request, format: str = "json"):
             indent=2,
         ).encode("utf-8")
         return StreamingResponse(io.BytesIO(payload), media_type="application/json", headers={"Content-Disposition": "attachment; filename=simulation-result.json"})
-    if format not in {"csv", "xlsx"}:
-        raise HTTPException(status_code=422, detail="导出格式必须是 csv、xlsx 或 json")
+    if format not in {"csv", "xlsx", "zip"}:
+        raise HTTPException(status_code=422, detail="Export format must be csv, xlsx, zip, or json")
     def flatten(value, prefix=""):
         flat = {}
         if isinstance(value, dict):
@@ -527,14 +528,36 @@ def export_results(request: Request, format: str = "json"):
         for key in row:
             if key not in fields:
                 fields.append(key)
-    if format == "csv":
-        stream = io.StringIO()
-        writer = csv.DictWriter(stream, fieldnames=fields)
-        writer.writeheader()
-        writer.writerows(rows_data)
-        return Response(stream.getvalue().encode("utf-8-sig"), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=simulation-result.csv"})
+    stream = io.StringIO()
+    writer = csv.DictWriter(stream, fieldnames=fields)
+    writer.writeheader()
+    writer.writerows(rows_data)
+    csv_bytes = stream.getvalue().encode("utf-8-sig")
     rows = [fields] + [[row.get(field, "") for field in fields] for row in rows_data]
     config_rows = [["key", "value"]]
     for key, value in session.configuration.items():
         config_rows.append([key, json.dumps(value, ensure_ascii=False) if isinstance(value, (dict, list)) else value])
+    if format == "csv":
+        return Response(csv_bytes, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=simulation-result.csv"})
+    if format == "zip":
+        json_bytes = json.dumps(
+            {**status_payload, "statistics_history": history},
+            ensure_ascii=False,
+            indent=2,
+        ).encode("utf-8")
+        archive_buffer = io.BytesIO()
+        report_dir = Path(getattr(engine, "report_dir", "reports")) if engine is not None else Path("reports")
+        with zipfile.ZipFile(archive_buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("simulation-result.json", json_bytes)
+            archive.writestr("simulation-result.csv", csv_bytes)
+            archive.writestr("simulation-result.xlsx", _xlsx_bytes(rows, config_rows))
+            if report_dir.exists():
+                for report_path in sorted(report_dir.iterdir()):
+                    if report_path.is_file() and report_path.suffix.lower() in {".csv", ".svg"}:
+                        archive.write(report_path, f"reports/{report_path.name}")
+        return Response(
+            archive_buffer.getvalue(),
+            media_type="application/zip",
+            headers={"Content-Disposition": "attachment; filename=simulation-results.zip"},
+        )
     return Response(_xlsx_bytes(rows, config_rows), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=simulation-result.xlsx"})

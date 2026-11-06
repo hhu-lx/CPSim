@@ -30,11 +30,11 @@ def generate_realistic_task_profile(row_count: int, *, seed: int = 42) -> list[d
         if index:
             phase_second = submitted_at % 1200.0
             if 720.0 <= phase_second < 1020.0:
-                interval = rng.uniform(2.0, 3.0)   # 约 24 个任务/分钟的高峰
+                interval = rng.uniform(2.0, 3.0)   # Implementation note.
             elif phase_second >= 1020.0:
-                interval = rng.uniform(7.0, 9.0)   # 高峰后的恢复阶段
+                interval = rng.uniform(7.0, 9.0)   # Implementation note.
             else:
-                interval = rng.uniform(4.0, 6.0)   # 约 12 个任务/分钟的常态
+                interval = rng.uniform(4.0, 6.0)   # Implementation note.
             submitted_at += interval
         profile.append({"submitted_at": round(submitted_at, 3)})
     return profile

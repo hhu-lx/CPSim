@@ -14,20 +14,6 @@
   const formatTime = (seconds) => { const s = Math.max(0, Number(seconds || 0)); return [Math.floor(s / 3600), Math.floor(s / 60) % 60, Math.floor(s) % 60].map(v => String(v).padStart(2, '0')).join(':'); };
   const number = (value) => Number.isFinite(Number(value)) ? Number(value).toFixed(2) : '0.00';
   const measurement = (value, unit) => value !== null && value !== undefined && Number.isFinite(Number(value)) ? `${number(value)} ${unit}` : `— ${unit}`;
-  const storageReason = (reason) => {
-    const limited = String(reason || '').endsWith('_soc_limited');
-    const key = limited ? String(reason).slice(0, -12) : reason;
-    const labels = {
-      valley_charging: 'Valley Charging', peak_discharging: 'Peak Discharging',
-      realtime_valley_charging: 'Real-Time Valley Charging', realtime_peak_discharging: 'Real-Time Peak Discharging',
-      renewable_absorption_charging: 'Renewable Absorption Charging', realtime_deadband_idle: 'Deadband Idle',
-      optimized_valley_charging: 'Optimized Valley Charging', optimized_peak_discharging: 'Optimized Peak Discharging',
-      optimized_renewable_charging: 'Optimized Renewable Absorption',
-      grid_support_discharging: 'Grid Limit Support', overvoltage_charging: 'Overvoltage Absorption',
-      flat_idle: 'Flat-Period Idle', no_storage: 'No Storage', not_started: 'Waiting for Dispatch',
-    };
-    return `${labels[key] || 'Automatic Dispatch'}${limited ? ' (SOC Limited)' : ''}`;
-  };
 
   function renderRuntimeCards(stats) {
     const runtime = stats.datacenter_runtime || {};
@@ -88,7 +74,6 @@
       const node = document.querySelector(`#dcFlow${label} strong`);
       if (node) node.textContent = `Datacenter ${label}`;
     });
-    if (centers.length) $('systemBanner').innerHTML = '<span>● Configuration loaded</span><small>Datacenters and strategy parameters are ready</small>';
   }
 
   function lineChart(target, series) {
@@ -239,22 +224,18 @@
     renderRuntimeCards(stats);
     renderHealth(stats);
     renderOverviewConfiguration(payload.configuration);
-    const gridIssue = stats.grid_voltage_health?.status === 'out_of_range' || stats.grid_line_health?.status === 'overloaded';
-    $('systemBanner').innerHTML = payload.status === 'running'
-      ? gridIssue ? '<span>● System running; grid constraints exceeded</span><small>Storage and renewable dispatch are regulating the grid</small>' : '<span>● System running normally</span><small>Live statistics and dispatch data are updating</small>'
-      : '<span>● System waiting to run</span><small>Apply the configuration to start the simulation</small>';
     const latestRuntime = Object.values(stats.datacenter_runtime || {});
     ['dcFlowA', 'dcFlowB', 'dcFlowC'].forEach((id, index) => { const value = latestRuntime[index]; $(id).textContent = value ? measurement(value.power_mw, 'MW') : '— MW'; });
     $('windOutput').textContent = measurement(stats.wind_generation_mw, 'MW');
     $('pvOutput').textContent = measurement(stats.pv_generation_mw, 'MW');
     const renewableNodes = document.querySelectorAll('.flow-node.renewable small');
-    if (renewableNodes[0]) renewableNodes[0].textContent = `Available ${measurement(stats.wind_available_mw, 'MW')} · Curtailed ${measurement(stats.wind_curtailed_mw, 'MW')}`;
-    if (renewableNodes[1]) renewableNodes[1].textContent = `Available ${measurement(stats.pv_available_mw, 'MW')} · Curtailed ${measurement(stats.pv_curtailed_mw, 'MW')}`;
+    if (renewableNodes[0]) renewableNodes[0].textContent = `Curtailed ${measurement(stats.wind_curtailed_mw, 'MW')}`;
+    if (renewableNodes[1]) renewableNodes[1].textContent = `Curtailed ${measurement(stats.pv_curtailed_mw, 'MW')}`;
     $('gridExchange').textContent = measurement(stats.grid_exchange_mw, 'MW');
     $('storageOutput').textContent = measurement(stats.storage_power_mw, 'MW');
     document.querySelector('.flow-node.storage small').textContent = stats.storage_soc_pct !== null && stats.storage_soc_pct !== undefined
-      ? `SOC ${number(stats.storage_soc_pct)}% · ${storageReason(stats.storage_dispatch_reason)}`
-      : `SOC — · ${storageReason(stats.storage_dispatch_reason)}`;
+      ? `SOC ${number(stats.storage_soc_pct)}%`
+      : 'SOC —';
     if (Object.keys(incomingStats).length) {
       const second = Number(incomingStats.second);
       state.history = TrendCharts.upsertRollingHistory(state.history, incomingStats, 180);

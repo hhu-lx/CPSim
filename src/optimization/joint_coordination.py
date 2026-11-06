@@ -439,6 +439,91 @@ class JointCoordinationOptimizer:
             + sum(max(values or [0.0]) for values in renewable_available.values())
             + storage_power_limit,
         )
+
+
+        raw_renewable_available = {}
+        for renewable in problem.renewables:
+            values, _ = _expand(renewable.available_mw, horizon)
+            raw_renewable_available[renewable.id] = values
+
+        renewable_surplus_mode = {
+            t: model.addVar(
+                vtype=cp.COPT.BINARY,
+                name=f"renewable_surplus_mode_{t}",
+            )
+            for t in periods
+        }
+
+        for t in periods:
+            # Implementation note.
+            # Implementation note.
+            # Implementation note.
+            surplus_without_storage = (
+                    sum(
+                        raw_renewable_available[item.id][t]
+                        for item in problem.renewables
+                    )
+                    + fixed_generation[t]
+                    - load[t]
+                    - cp.quicksum(
+                compute_load[dc.id, t] for dc in data_centers
+            )
+            )
+
+            # Implementation note.
+            # Implementation note.
+            # Implementation note.
+            raw_renewable_available = {}
+            for renewable in problem.renewables:
+                values, _ = _expand(renewable.available_mw, horizon)
+                raw_renewable_available[renewable.id] = values
+
+            renewable_surplus_mode = {
+                t: model.addVar(
+                    vtype=cp.COPT.BINARY,
+                    name=f"renewable_surplus_mode_{t}",
+                )
+                for t in periods
+            }
+
+            for t in periods:
+                # Implementation note.
+                # Implementation note.
+                # Implementation note.
+                surplus_without_storage = (
+                        sum(
+                            raw_renewable_available[item.id][t]
+                            for item in problem.renewables
+                        )
+                        + fixed_generation[t]
+                        - load[t]
+                        - cp.quicksum(
+                    compute_load[dc.id, t] for dc in data_centers
+                )
+                )
+
+                # surplus_without_storage >= 0  => surplus_mode = 1
+                # surplus_without_storage <  0  => surplus_mode = 0
+                model.addConstr(
+                    surplus_without_storage
+                    >= -balance_big_m * (1 - renewable_surplus_mode[t])
+                )
+                model.addConstr(
+                    surplus_without_storage
+                    <= balance_big_m * renewable_surplus_mode[t]
+                )
+
+                # Implementation note.
+                model.addConstr(
+                    cp.quicksum(
+                        discharge[item.id, t]
+                        for item in problem.storages
+                    )
+                    <= storage_power_limit * (1 - renewable_surplus_mode[t])
+                )
+            # Implementation note.
+
+
         pre_storage_balance = {}
         for t in periods:
             conventional[t] = cp.quicksum(generator_vars[item.id, t] for item in problem.generators)
@@ -511,22 +596,30 @@ class JointCoordinationOptimizer:
             for t in periods
         }
         for t in periods:
+            storage_supply = cp.quicksum(
+                discharge[item.id, t] - charge[item.id, t]
+                for item in problem.storages
+            )
+            model.addConstr(
+                supply_balance_abs[t]
+                >= pre_storage_balance[t] - storage_supply
+            )
             # Use the available-renewable direction signal here as well, so
             # curtailing renewable output cannot hide a real surplus from the
             # storage objective.
             # Keep this residual constraint inside the period loop.  Using
             # the last loop value here would leave earlier periods without a
             # storage-following balance signal.
-            model.addConstr(supply_balance_abs[t] >= (
-                pre_storage_balance[t]
-                - cp.quicksum(discharge[item.id, t] - charge[item.id, t]
-                              for item in problem.storages)
-            ))
-            model.addConstr(supply_balance_abs[t] >= (
-                -pre_storage_balance[t]
-                + cp.quicksum(discharge[item.id, t] - charge[item.id, t]
-                              for item in problem.storages)
-            ))
+            # model.addConstr(supply_balance_abs[t] >= (
+            #     pre_storage_balance[t]
+            #     - cp.quicksum(discharge[item.id, t] - charge[item.id, t]
+            #                   for item in problem.storages)
+            # ))
+            # model.addConstr(supply_balance_abs[t] >= (
+            #     -pre_storage_balance[t]
+            #     + cp.quicksum(discharge[item.id, t] - charge[item.id, t]
+            #                   for item in problem.storages)
+            # ))
 
         green_match = {}
         for dc in data_centers:

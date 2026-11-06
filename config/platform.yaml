@@ -1,48 +1,48 @@
-#  电网配置
+# Implementation note.
 grid:
-  base_mva: 100.0                    # 基准容量（MVA）
-  load_factor: 1.0                   # 负荷缩放系数
-  load_capacity_mw: 6254.23          # 读入负荷曲线的额定规模，不再从 IEEE39 拓扑负荷取值
-  time_compression: 1.0              # 当前文件已固定为选定自然日的逐秒数据
-  time_series_start_offset_seconds: 0      # 文件已截取为同一自然日00:00-24:00窗口
-  pv_capacity_mw: 4377.96            # 光伏装机容量，约为负荷额定规模的70%
-  wind_capacity_mw: 3752.54           # 风电装机容量，约为负荷额定规模的60%
-  base_generation_capacity_mw: 7200.0 # 常规发电计划标幺值对应的实际容量基准
-  # 常规计划由平滑且带偏差的风光预测与负荷共同生成，实际风光偏差用于形成弃电。
-  external_grid_max_import_mw: 5000.0  # 低风光时为滚动优化保留足够的平衡购电能力
-  use_topology_generators: false      # IEEE39 仅作网络拓扑；不采用其自带机组出力
+  base_mva: 100.0                    # Implementation note.
+  load_factor: 1.0                   # Implementation note.
+  load_capacity_mw: 6254.23          # Implementation note.
+  time_compression: 1.0              # Implementation note.
+  time_series_start_offset_seconds: 0      # Implementation note.
+  pv_capacity_mw: 4377.96            # Implementation note.
+  wind_capacity_mw: 3752.54           # Implementation note.
+  base_generation_capacity_mw: 7200.0 # Implementation note.
+  # Implementation note.
+  external_grid_max_import_mw: 5000.0  # Implementation note.
+  use_topology_generators: false      # Implementation note.
 
-  # 负荷节点列表
+  # Implementation note.
   load_buses: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
 
-  # 新能源接入节点
-  pv_bus: 10                         # 光伏接入节点
-  pv_secondary_bus: 16               # 新增光伏接入节点（上海侧）
-  pv_secondary_ratio: 0.7            # 光伏总出力中 Bus16 分摊比例，Bus10 为30%
-  wind_bus: 20                        # 风电接入节点
-  wind_secondary_bus: 3              # 新增风电接入节点（北京侧）
-  wind_secondary_ratio: 0.5          # 风电总出力中新增节点分摊比例
+  # Implementation note.
+  pv_bus: 10                         # Implementation note.
+  pv_secondary_bus: 16               # Implementation note.
+  pv_secondary_ratio: 0.7            # Implementation note.
+  wind_bus: 20                        # Implementation note.
+  wind_secondary_bus: 3              # Implementation note.
+  wind_secondary_ratio: 0.5          # Implementation note.
   carbon_price: 60.0
-  # 时序数据文件
+  # Implementation note.
   load_file: config/use_second.csv
   pv_file: config/sun_second.csv
   wind_file: config/wind_second.csv
-  # 常规发电计划仅跟随负荷，不包含风电、光伏预测；风光作为实时可弃电出力。
+  # Implementation note.
   base_generation_file: config/base_generation_pu_second.csv
 
 
-#  数据中心配置 
+# Implementation note.
 data_centers:
   - id: DC1
-    name: 北京中心
+    name: Datacenter A
     region: region_a
-    grid_bus_id: 3                   # 挂载的电网节点
-    total_compute: 250.0             # 总算力（TFLOPS）
-    total_bandwidth: 100000.0        # 总带宽（Mbps，100 Gbps）
-    power_per_tflops: 0.5            # 每TFLOPS功耗（MW）
-    power_scale: 3.0                 # 算力任务功率放大系数，可由 user_config.example.json 覆盖
-    profit_margin: 1.3               # 利润加成系数
+    grid_bus_id: 3                   # Implementation note.
+    total_compute: 250.0             # Implementation note.
+    total_bandwidth: 100000.0        # Implementation note.
+    power_per_tflops: 0.5            # Implementation note.
+    power_scale: 3.0                 # Implementation note.
+    profit_margin: 1.3               # Implementation note.
     pue: 1.15
     device_pool:
       - {model: GPU-H100, equipment_type: compute, quantity: 3, compute_tflops: 80, rated_power_kw: 0.70, idle_power_kw: 0.35}
@@ -51,11 +51,11 @@ data_centers:
       - {model: ToR-48p, equipment_type: network, quantity: 2, rated_power_kw: 0.28, idle_power_kw: 0.1}
 
   - id: DC2
-    name: 上海中心
+    name: Datacenter B
     region: region_a
     grid_bus_id: 16
     total_compute: 200.0
-    total_bandwidth: 100000.0        # 总带宽（Mbps，100 Gbps）
+    total_bandwidth: 100000.0        # Implementation note.
     power_per_tflops: 0.45
     power_scale: 3.0
     profit_margin: 1.25
@@ -67,11 +67,11 @@ data_centers:
       - {model: ToR-48p, equipment_type: network, quantity: 2, rated_power_kw: 0.28, idle_power_kw: 0.1}
 
   - id: DC3
-    name: 深圳中心
+    name: Datacenter C
     region: region_b
     grid_bus_id: 21
     total_compute: 300.0
-    total_bandwidth: 200000.0        # 总带宽（Mbps，200 Gbps）
+    total_bandwidth: 200000.0        # Implementation note.
     power_per_tflops: 0.55
     power_scale: 3.0
     profit_margin: 1.35
@@ -84,18 +84,18 @@ data_centers:
 
 
 
-#  仿真配置 
+# Implementation note.
 simulation:
   time_unit: seconds
   start_datetime: "2026-09-22T16:00:00"
   duration_hours: 24
-  step_seconds: 30                   # 任务按30秒主步长推进；最短等待90秒，仍可在截止前调度
-  stats_interval_seconds: 60         # 前端内存与基础统计（60秒）
-  renewable_optimization_interval_seconds: 900  # 空闲时风光/协调优化（15分钟）；有任务按5分钟合批
-  report_interval_seconds: 300       # CSV/SVG 磁盘报表（5分钟）
-  cpf_interval_seconds: 900          # 连续潮流稳定性分析（15分钟）
-  power_flow_interval_seconds: 900   # 完整潮流刷新（15个仿真分钟）
-  time_scale: 0.0166667              # 固定约60倍：真实1秒推进约60个仿真秒
+  step_seconds: 30                   # Implementation note.
+  stats_interval_seconds: 60         # Implementation note.
+  renewable_optimization_interval_seconds: 900  # Implementation note.
+  report_interval_seconds: 300       # Implementation note.
+  cpf_interval_seconds: 900          # Implementation note.
+  power_flow_interval_seconds: 900   # Implementation note.
+  time_scale: 0.0166667              # Implementation note.
 
 reports:
   directory: reports
@@ -110,8 +110,8 @@ reference_tables:
 storages:
   - id: storage-1
     bus_id: 10
-    # 系统装机 300 + 2920 + 1300 = 4520 MW；储能额定出力按约 3% 配置。
-    # 电量与初始/最低 SOC 等比例放大，保持原有 2 小时额定时长和荷电比例。
+    # Implementation note.
+    # Implementation note.
     capacity_mwh: 174.0
     max_power_mw: 87.0
     initial_soc_mwh: 87.0
@@ -122,28 +122,28 @@ storages:
     degradation_cost_per_mwh: 2.0
 
 storage_control:
-  deadband_mw: 0.5                 # 更积极地响应小幅峰谷偏差
-  reference_alpha: 0.02            # 更快跟踪实时净负荷基准，提升储能参与度
-  optimization_interval_seconds: 60 # 局部/联合模式每60秒重算一次，其余时刻复用功率
+  deadband_mw: 12                 # Implementation note.
+  reference_alpha: 0.02            # Implementation note.
+  optimization_interval_seconds: 60 # Implementation note.
 
 optimization:
   enabled: true
-  # 单一模式开关：none / hierarchical / joint
+  # Implementation note.
   mode: none
   objective: min_cost
-  # 适度均衡：允许中心利用率有差异，但避免可行中心长期空转
+  # Implementation note.
   load_balance_weight: 2.0
-  # 当本批任务足够时，每个具备可行任务的中心至少承接的任务数；0 表示关闭
+  # Implementation note.
   minimum_active_center_tasks: 1
-  # 局部/联合优化按此窗口合并新到任务；任务仍保留在队列中，不会遗漏
+  # Implementation note.
   task_batch_interval_seconds: 300
-  # 全局优化只在该时限内搜索；取得可行解后立即用于调度，避免为证明最后少量最优性而阻塞仿真
+  # Implementation note.
   global_time_limit_seconds: 2.0
   global_relative_mip_gap: 0.03
-  # 联合优化的在线预测窗口与滚动粒度；风光预测只使用当前时刻以前的观测
+  # Implementation note.
   forecast_horizon_hours: 2.0
   forecast_step_minutes: 5.0
-  # 可选：用户自定义函数，格式 module:function
+  # Implementation note.
   # objective_function: my_objectives:score
   weights:
     cost: 1.0
@@ -154,18 +154,18 @@ optimization:
     storage_degradation: 0.5
 
 scheduling:
-  batch_interval_seconds: 5          # 每5秒扫描队列，及时复用刚释放的资源
-  max_tasks_per_batch: 128           # 覆盖5分钟窗口峰值122个任务，避免拆成多轮协调求解
-  local_max_tasks_per_batch: 4       # 局部协调按电力/潮流裕度小批量落地
+  batch_interval_seconds: 5          # Implementation note.
+  max_tasks_per_batch: 128           # Implementation note.
+  local_max_tasks_per_batch: 4       # Implementation note.
 
 electricity_pricing:
-  # mode=none 时自动读取用户可编辑的固定峰谷电价文件
+  # Implementation note.
   file: config/time_of_use_pricing.csv
   mode: marginal
 
 
-#  任务数据配置 
+# Implementation note.
 tasks:
-  excel_file: config/task_data_completed.csv       # 覆盖原始数据后的任务表
-  default_region: region_a              # 默认地区
-  # 任务表中的 start_time 和 submitted_at 已统一转换为秒，按原始时间运行
+  excel_file: config/task_data_completed.csv       # Implementation note.
+  default_region: region_a              # Implementation note.
+  # Implementation note.

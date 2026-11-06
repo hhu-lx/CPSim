@@ -55,12 +55,12 @@ from src.loaders.user_config_loader import (
 
 def format_emission_log(total_emission: float) -> str:
     """Use GBK-safe console text; rich Unicode remains available in the API."""
-    return f"  全网排放率: {float(total_emission):.2f} 吨CO2/h"
+    return f"  Total grid emissions: {float(total_emission):.2f} tCO2/h"
 
 
 def format_idle_log() -> str:
     """Return a console-safe idle message without emoji variation selectors."""
-    return "  当前无运行任务"
+    return "  No running tasks"
 
 
 def task_power_snapshot(tasks, data_center_sims, second: float) -> Dict[str, float]:
@@ -132,7 +132,7 @@ def aggregate_storage_power_samples(points, bucket_seconds: float = 300.0) -> li
 
 
 def format_total_cost_log(total_cost_yuan: float) -> str:
-    return f"  总运行成本: {float(total_cost_yuan):,.2f} 元"
+    return f"  Total operating cost: {float(total_cost_yuan):,.2f} CNY"
 
 
 def _merge_frontend_config(base: dict, user: dict) -> dict:
@@ -195,11 +195,11 @@ class SimulationEngine:
     ):
         self.env = simpy.Environment()
 
-        #  加载配置 
+        # Implementation note.
         try:
             config = load_platform_config(config_file)
         except FileNotFoundError:
-            print("未找到配置文件，使用默认设置")
+            print("Configuration file not found; using defaults")
             config = {}
 
         self.user_config = {}
@@ -253,7 +253,7 @@ class SimulationEngine:
         if not isinstance(self.storage_control_config, dict):
             self.storage_control_config = {}
         pricing_file = resolve_path(self.pricing_config.get("file"))
-        # 分时电价既可作为固定模式的最终价格，也可作为边际模式的共同基准。
+        # Implementation note.
         self.base_tou_pricing = (
             FixedTimeOfUsePricing.from_csv(pricing_file)
             if pricing_file
@@ -263,7 +263,7 @@ class SimulationEngine:
         )
         self.fixed_pricing = self.base_tou_pricing if self.pricing_config.get("mode") == "fixed_tou" else None
 
-        # 配置优先级：命令行,配置文件,默认值
+        # Implementation note.
         base_mva = grid_cfg.get('base_mva', 100.0)
         load_factor = grid_cfg.get('load_factor', 1.0)
         load_capacity_mw = grid_cfg.get('load_capacity_mw')
@@ -279,7 +279,7 @@ class SimulationEngine:
         external_grid_max_import_mw = grid_cfg.get('external_grid_max_import_mw')
         use_topology_generators = bool(grid_cfg.get('use_topology_generators', True))
 
-        # 解析文件路径
+        # Implementation note.
         load_file = resolve_path(load_file) or grid_cfg.get('load_file')
         pv_file = resolve_path(pv_file) or grid_cfg.get('pv_file')
         wind_file = resolve_path(wind_file) or grid_cfg.get('wind_file')
@@ -308,50 +308,50 @@ class SimulationEngine:
             else sim_cfg.get('time_scale', 1.0)
         )
 
-        print("\n配置加载:")
-        print(f"基准容量: {base_mva} MVA")
-        print(f"负荷缩放: {load_factor}")
-        print(f"光伏节点: {pv_bus}, 风电节点: {wind_bus}")
-        print(f"时序起始偏移: {time_series_start_offset_seconds}s")
-        print(f"光伏/风电装机: {pv_capacity_mw}/{wind_capacity_mw} MW")
-        print(f"统计间隔: {stats_interval_seconds}s")
-        print(f"新能源优化间隔: {renewable_optimization_interval_seconds}s")
-        print(f"报表写入间隔: {report_interval_seconds}s")
-        print(f"连续潮流分析间隔: {cpf_interval_seconds}s")
-        print(f"潮流刷新间隔: {power_flow_interval_seconds}s")
-        print(f"负荷文件: {load_file}")
-        print(f"光伏文件: {pv_file}")
-        print(f"风电文件: {wind_file}")
-        print(f"基础发电文件: {base_generation_file}")
+        print("\nConfiguration loaded:")
+        print(f"Base capacity: {base_mva} MVA")
+        print(f"Load scale: {load_factor}")
+        print(f"PV bus: {pv_bus}, Wind bus: {wind_bus}")
+        print(f"Time-series start offset: {time_series_start_offset_seconds}s")
+        print(f"PV/Wind capacity: {pv_capacity_mw}/{wind_capacity_mw} MW")
+        print(f"Statistics interval: {stats_interval_seconds}s")
+        print(f"Renewable optimization interval: {renewable_optimization_interval_seconds}s")
+        print(f"Report interval: {report_interval_seconds}s")
+        print(f"Continuation power-flow interval: {cpf_interval_seconds}s")
+        print(f"Power-flow refresh interval: {power_flow_interval_seconds}s")
+        print(f"Load file: {load_file}")
+        print(f"PV file: {pv_file}")
+        print(f"Wind file: {wind_file}")
+        print(f"Base generation file: {base_generation_file}")
 
-        #  加载时序数据 
+        # Implementation note.
         self.load_loader = None
         self.pv_loader = None
         self.wind_loader = None
         self.base_generation_loader = None
 
         if load_file and Path(load_file).exists():
-            self.load_loader = TimeSeriesDataLoader(load_file, "用电负荷", grid_time_compression, time_series_start_offset_seconds)
+            self.load_loader = TimeSeriesDataLoader(load_file, "electric load", grid_time_compression, time_series_start_offset_seconds)
         elif load_file:
-            print(f"负荷数据文件不存在: {load_file}")
+            print(f"Load data file not found: {load_file}")
 
         if pv_file and Path(pv_file).exists():
-            self.pv_loader = TimeSeriesDataLoader(pv_file, "光伏发电", grid_time_compression, time_series_start_offset_seconds)
+            self.pv_loader = TimeSeriesDataLoader(pv_file, "PV generation", grid_time_compression, time_series_start_offset_seconds)
         elif pv_file:
-            print(f"光伏数据文件不存在: {pv_file}")
+            print(f"PV data file not found: {pv_file}")
 
         if wind_file and Path(wind_file).exists():
-            self.wind_loader = TimeSeriesDataLoader(wind_file, "风力发电", grid_time_compression, time_series_start_offset_seconds)
+            self.wind_loader = TimeSeriesDataLoader(wind_file, "wind generation", grid_time_compression, time_series_start_offset_seconds)
         elif wind_file:
-            print(f"风电数据文件不存在: {wind_file}")
+            print(f"Wind data file not found: {wind_file}")
 
         if base_generation_file and Path(base_generation_file).exists():
             self.base_generation_loader = TimeSeriesDataLoader(
-                base_generation_file, "基础发电标幺值", grid_time_compression,
+                base_generation_file, "base generation per unit", grid_time_compression,
                 time_series_start_offset_seconds,
             )
         elif base_generation_file:
-            print(f"基础发电数据文件不存在: {base_generation_file}")
+            print(f"Base generation data file not found: {base_generation_file}")
 
         # A topology may declare direct MW profiles for each renewable node.
         # These are independent physical injections, unlike legacy aggregate
@@ -367,20 +367,20 @@ class SimulationEngine:
             node_power_path = resolve_path(str(power_file))
             if node_power_path is None or not Path(node_power_path).exists():
                 raise FileNotFoundError(
-                    f"新能源节点 {renewable.get('name', renewable.get('bus_id'))} 出力文件不存在: {power_file}"
+                    f"Renewable bus {renewable.get('name', renewable.get('bus_id'))} output file not found: {power_file}"
                 )
             renewable_node_loaders.append({
                 "type": source,
                 "bus_id": int(renewable["bus_id"]),
                 "loader": TimeSeriesDataLoader(
                     node_power_path,
-                    f"{renewable.get('name', source)}节点出力(MW)",
+                    f"{renewable.get('name', source)} bus output (MW)",
                     grid_time_compression,
                     time_series_start_offset_seconds,
                 ),
             })
 
-        #  电价策略
+        # Implementation note.
         if self.pricing_config.get("mode") == "custom":
             custom_parameters = {
                 key: value for key, value in self.pricing_config.get("parameters", {}).items()
@@ -395,7 +395,7 @@ class SimulationEngine:
                 base_pricing=self.base_tou_pricing,
             )
 
-        #  创建 Pandapower 适配器 
+        # Implementation note.
         self.pp_adapter = PandapowerAdapter(
             load_loader=self.load_loader,
             pv_loader=self.pv_loader,
@@ -422,37 +422,37 @@ class SimulationEngine:
             verbose=False
         )
 
-        #  创建带宽管理器 
+        # Implementation note.
         self.bandwidth_manager = BandwidthManager(self.env)
 
-        #  从配置构建数据中心 
+        # Implementation note.
         self.data_centers = build_data_centers(config)
         self.storages: Dict[str, EnergyStorage] = {
             storage.id: storage for storage in build_storages(config)
         }
         self.pp_adapter.set_storage_models(self.storages.values())
         if not self.data_centers:
-            print("未配置数据中心，使用默认配置")
+            print("No datacenters configured; using defaults")
             self.data_centers = [
                 DataCenter(
-                    id="DC1", name="北京中心", region="region_a",
+                    id="DC1", name="Datacenter A", region="region_a",
                     total_compute=200.0, total_bandwidth=2000.0, grid_bus_id=3
                 ),
                 DataCenter(
-                    id="DC2", name="上海中心", region="region_a",
+                    id="DC2", name="Datacenter B", region="region_a",
                     total_compute=160.0, total_bandwidth=1600.0, grid_bus_id=16
                 ),
                 DataCenter(
-                    id="DC3", name="深圳中心", region="region_b",
+                    id="DC3", name="Datacenter C", region="region_b",
                     total_compute=240.0, total_bandwidth=4000.0, grid_bus_id=21
                 ),
             ]
 
-        # 注册带宽资源
+        # Implementation note.
         for dc in self.data_centers:
             self.bandwidth_manager.register_data_center(dc)
 
-        #  创建调度器 
+        # Implementation note.
         strategy_name = self.scheduling_config.get("strategy", "lowest_price")
         strategy_settings = self.scheduling_config.get("settings", {})
         if strategy_name == "lowest_price":
@@ -461,7 +461,7 @@ class SimulationEngine:
             StrategyRegistry().create_allocation(strategy_name, strategy_settings)
         )
 
-        #  创建 DataCenterSim 实例 
+        # Implementation note.
         self.dc_sims = {}
         for dc in self.data_centers:
             mapping_strategy = LinearMapping(base_coefficient=dc.power_per_tflops)
@@ -474,13 +474,13 @@ class SimulationEngine:
             )
             self.dc_sims[dc.id].step_seconds = float(step_seconds)
 
-        #  任务管理 
-        self.pending_tasks: List[Task] = []  # 等待释放的任务（按 submitted_at 排序）
-        self.ready_tasks: List[Task] = []  # 已释放等待调度
+        # Implementation note.
+        self.pending_tasks: List[Task] = []  # Implementation note.
+        self.ready_tasks: List[Task] = []  # Implementation note.
         self.task_registry: Dict[str, Task] = {}
         self.dispatched_task_ids = set()
 
-        #  统计信息 
+        # Implementation note.
         self.stats_records: Dict[int, Dict] = {}
         self.stats_count = 0
         self.total_operating_cost_yuan = 0.0
@@ -509,7 +509,7 @@ class SimulationEngine:
         self._optimization_cache = OrderedDict()
         self._optimization_cache_limit = 32
 
-        #  仿真控制 
+        # Implementation note.
         self.running = False
         self.time_scale = time_scale
         self.step_seconds = step_seconds
@@ -523,9 +523,9 @@ class SimulationEngine:
         # CLI explicitly starts the worker so validation/tests cannot leak
         # background solver threads.
         self.thread = None
-        print("仿真引擎已初始化")
+        print("Simulation engine initialized")
 
-    #  任务提交接口
+    # Implementation note.
 
     def _bump_state_version(self, reason: str = "") -> None:
         """Invalidate optimization reuse after a simulation state mutation."""
@@ -581,20 +581,20 @@ class SimulationEngine:
         )
 
     def submit_task(self, task: Task):
-        """登记任务；任务到达 submitted_at 时才进入提交队列。"""
+        """Implementation documentation."""
         if task.id in self.task_registry:
-            print(f"[跳过] 重复任务 ID {task.id}，不重复登记")
+            print(f"[skip] duplicate task ID {task.id}，not registering again")
             return
         if task.status == TaskStatus.PENDING:
             task.transition_to(TaskStatus.SUBMITTED)
         self.pending_tasks.append(task)
         self.task_registry[task.id] = task
         self._bump_state_version("task_submitted")
-        print(f"[登记] 任务 {task.id} 已登记，计划提交时间 {task.submitted_at:.0f}s")
+        print(f"[register] Task {task.id} registered; scheduled submission time {task.submitted_at:.0f}s")
         self.pending_tasks.sort(key=lambda t: getattr(t, 'submitted_at', 0))
 
     def submit_tasks(self, tasks: List[Task]) -> int:
-        """批量登记任务，避免逐条打印和重复排序拖慢仿真启动。"""
+        """Implementation documentation."""
         accepted = []
         skipped = 0
         for task in tasks:
@@ -611,13 +611,13 @@ class SimulationEngine:
             self._bump_state_version("tasks_submitted")
         if accepted or skipped:
             print(
-                f"[批量登记] 已加载 {len(accepted)} 个任务，"
-                f"跳过重复任务 {skipped} 个，按提交时间等待到达"
+                f"[batch register] Loaded {len(accepted)} tasks; "
+                f"skipped {skipped} duplicates, ordered by submission time"
             )
         return len(accepted)
 
     def submit_task_with_dc(self, task: Task, dc_id: str):
-        """指定数据中心提交任务"""
+        """Implementation documentation."""
         task.allocated_data_center_id = dc_id
         self.submit_task(task)
 
@@ -649,14 +649,12 @@ class SimulationEngine:
         storages = getattr(self, "storages", {})
         if not storages:
             return
+
         requested = {
             storage_id: float(storage.current_power_mw)
             for storage_id, storage in storages.items()
         }
-        # Between rolling solves, replace a held discharge/idle command when
-        # the last measured renewable dispatch shows real curtailed green
-        # power.  This is the emergency absorption path; it is based only on
-        # observed renewable surplus and still advances SOC exactly once.
+
         summary = (
             self.pp_adapter.get_renewable_dispatch_summary()
             if hasattr(self.pp_adapter, "get_renewable_dispatch_summary") else {}
@@ -665,23 +663,41 @@ class SimulationEngine:
             max(0.0, float(item.get("curtailed_mw", 0.0)))
             for item in summary.values()
         )
+
+        # Implementation note.
+        net_load = (
+            float(self.pp_adapter.estimate_net_load_mw(self.current_second))
+            if hasattr(self.pp_adapter, "estimate_net_load_mw")
+            else 0.0
+        )
+        # Implementation note.
+        surplus_without_storage = max(0.0, -net_load)
+
         total_power = sum(float(storage.max_power_mw) for storage in storages.values())
-        emergency_charge = curtailed > 1e-6 and total_power > 0.0
-        if emergency_charge:
-            requested_total = -min(total_power, curtailed)
+
+        # Implementation note.
+        need_charge = (curtailed > 1e-6 or surplus_without_storage > 1e-6) and total_power > 0.0
+
+        if need_charge:
+            # Implementation note.
+            target_charge = min(total_power, max(curtailed, surplus_without_storage))
+            requested_total = -target_charge
             requested = {
                 storage_id: requested_total * float(storage.max_power_mw) / total_power
                 for storage_id, storage in storages.items()
             }
+
         requested = {
             storage_id: float(requested.get(storage_id, 0.0))
             for storage_id in storages
         }
+
         actual = self.apply_storage_dispatch(
             requested,
             step_hours=float(getattr(self, "step_seconds", 1)) / 3600.0,
         )
-        if emergency_charge:
+
+        if need_charge:
             actual_total = sum(actual.values())
             self.storage_dispatch_result = {
                 **getattr(self, "storage_dispatch_result", {}),
@@ -690,6 +706,52 @@ class SimulationEngine:
                 "requested_power_mw": sum(requested.values()),
                 "actual_power_mw": actual_total,
             }
+    # def _advance_optimized_storage(self) -> None:
+    #     """Advance held storage controls by one real simulation step."""
+    #     storages = getattr(self, "storages", {})
+    #     if not storages:
+    #         return
+    #     requested = {
+    #         storage_id: float(storage.current_power_mw)
+    #         for storage_id, storage in storages.items()
+    #     }
+    #     # Between rolling solves, replace a held discharge/idle command when
+    #     # the last measured renewable dispatch shows real curtailed green
+    #     # power.  This is the emergency absorption path; it is based only on
+    #     # observed renewable surplus and still advances SOC exactly once.
+    #     summary = (
+    #         self.pp_adapter.get_renewable_dispatch_summary()
+    #         if hasattr(self.pp_adapter, "get_renewable_dispatch_summary") else {}
+    #     )
+    #     curtailed = sum(
+    #         max(0.0, float(item.get("curtailed_mw", 0.0)))
+    #         for item in summary.values()
+    #     )
+    #     total_power = sum(float(storage.max_power_mw) for storage in storages.values())
+    #     emergency_charge = curtailed > 1e-6 and total_power > 0.0
+    #     if emergency_charge:
+    #         requested_total = -min(total_power, curtailed)
+    #         requested = {
+    #             storage_id: requested_total * float(storage.max_power_mw) / total_power
+    #             for storage_id, storage in storages.items()
+    #         }
+    #     requested = {
+    #         storage_id: float(requested.get(storage_id, 0.0))
+    #         for storage_id in storages
+    #     }
+    #     actual = self.apply_storage_dispatch(
+    #         requested,
+    #         step_hours=float(getattr(self, "step_seconds", 1)) / 3600.0,
+    #     )
+    #     if emergency_charge:
+    #         actual_total = sum(actual.values())
+    #         self.storage_dispatch_result = {
+    #             **getattr(self, "storage_dispatch_result", {}),
+    #             "status": "active" if abs(actual_total) > 1e-9 else "limited",
+    #             "reason": "optimized_renewable_charging",
+    #             "requested_power_mw": sum(requested.values()),
+    #             "actual_power_mw": actual_total,
+    #         }
 
     def _dispatch_storage(self) -> None:
         """Dispatch storage from live net demand, with grid security taking priority."""
@@ -743,7 +805,7 @@ class SimulationEngine:
         reference = reference_value
         if reference is None:
             reference = net_load
-        deadband = max(0.0, float(getattr(self, "storage_control_config", {}).get("deadband_mw", 5.0)))
+        deadband = max(0.0, float(getattr(self, "storage_control_config", {}).get("deadband_mw", 12.0)))
         alpha = min(1.0, max(0.0001, float(getattr(self, "storage_control_config", {}).get("reference_alpha", 0.02))))
         deviation = net_load - float(reference)
         renewable_summary = (
@@ -880,6 +942,41 @@ class SimulationEngine:
             + renewable_alpha * renewable_available
         )
 
+    def _enforce_surplus_storage_policy(self) -> None:
+        storages = getattr(self, "storages", {})
+        if not storages:
+            return
+
+        net_load = (
+            float(self.pp_adapter.estimate_net_load_mw(self.current_second))
+            if hasattr(self.pp_adapter, "estimate_net_load_mw")
+            else 0.0
+        )
+
+        curtailed = 0.0
+        if hasattr(self.pp_adapter, "get_renewable_dispatch_summary"):
+            summary = self.pp_adapter.get_renewable_dispatch_summary()
+            curtailed = sum(max(0.0, float(item.get("curtailed_mw", 0.0))) for item in summary.values())
+
+        surplus = max(0.0, -net_load)
+        if (curtailed > 1e-6 or surplus > 1e-6):
+            current_storage_power = sum(float(s.current_power_mw) for s in storages.values())
+
+            if current_storage_power > 1e-6:
+                requested = {sid: 0.0 for sid in storages}
+                self.apply_storage_dispatch(
+                    requested,
+                    step_hours=float(getattr(self, "step_seconds", 1)) / 3600.0,
+                )
+
+                self.storage_dispatch_result = {
+                    **getattr(self, "storage_dispatch_result", {}),
+                    "status": "idle",
+                    "reason": "forced_surplus_zero_discharge",
+                    "requested_power_mw": 0.0,
+                    "actual_power_mw": 0.0,
+                }
+
     def _storage_runtime_summary(self) -> Dict:
         storages = list(getattr(self, "storages", {}).values())
         capacity = sum(float(storage.capacity_mwh) for storage in storages)
@@ -937,8 +1034,8 @@ class SimulationEngine:
         strategy = getattr(adapter, "electricity_strategy", None)
         forecast_prices = getattr(strategy, "forecast_prices", None)
         if forecast_prices is not None:
-            # 边际项只反映算力任务带来的额外负荷；没有实时任务负荷时，
-            # 保留旧的净负荷预测行为以兼容独立调用。
+            # Implementation note.
+            # Implementation note.
             extra_loads = getattr(adapter, "extra_loads", None)
             current_task_load = sum(
                 max(0.0, float(value)) for value in extra_loads.values()
@@ -1769,9 +1866,9 @@ class SimulationEngine:
         else:
             self._advance_optimized_storage()
         self.pp_adapter.update_time_series(self.current_second)
-        # 完整潮流求解是主要的计算瓶颈，不需要在每个任务秒重复执行。
-        # 任务仍按 step_seconds 推进；电网状态按独立的潮流刷新间隔更新，并在优化周期
-        # 内由优化流程再次刷新，避免把仿真加速限制在约 5 倍。
+        # Implementation note.
+        # Implementation note.
+        # Implementation note.
         power_flow_interval = max(
             float(getattr(self, "power_flow_interval_seconds", 300)),
             float(getattr(self, "step_seconds", 1)),
@@ -1800,21 +1897,30 @@ class SimulationEngine:
             if hasattr(self, "_heuristic_pending_projection"):
                 delattr(self, "_heuristic_pending_projection")
             self._reuse_renewable_dispatch()
+
+            # Implementation note.
+            self._enforce_surplus_storage_policy()
+
+            if self.current_second % self.stats_interval_seconds == 0:
+                self.stats_count += 1
+                self._record_stats()
+                return True
+            return False
         if self.current_second % self.stats_interval_seconds == 0:
             self.stats_count += 1
             self._record_stats()
             return True
         return False
 
-    #  仿真主循环
+    # Implementation note.
 
     def _run_simulation(self):
-        """在后台线程中运行仿真，步长由 simulation.step_seconds 决定。"""
+        """Implementation documentation."""
 
         def second_proc():
             while self.running:
-                # 使用与引擎控制步长一致的 SimPy 时间推进；否则即使
-                # step_seconds 设置为 60，事件循环仍会按 1 秒运行。
+                # Implementation note.
+                # Implementation note.
                 yield self.env.timeout(max(0.001, float(self.step_seconds)))
                 self.step()
                 if self.time_scale > 0:
@@ -1830,12 +1936,12 @@ class SimulationEngine:
         self.running = True
         self.thread = threading.Thread(target=self._run_simulation, daemon=True)
         self.thread.start()
-        print("仿真引擎已启动")
+        print("Simulation engine started")
 
-    #  任务释放与调度
+    # Implementation note.
 
     def _release_pending_tasks(self):
-        """释放到时间的任务"""
+        """Implementation documentation."""
         if not self.pending_tasks:
             return
 
@@ -1854,13 +1960,13 @@ class SimulationEngine:
         if released:
             for task in released:
                 task.transition_to(TaskStatus.SCHEDULING)
-                print(f"[提交] 任务 {task.id} 在仿真时间 {self.current_second:.0f}s 到达")
+                print(f"[submit] Task {task.id} at simulation time {self.current_second:.0f}s arrived")
             self.ready_tasks.extend(released)
             if len(released) <= 5:
                 for t in released:
-                    print(f"[调度] 任务 {t.id} 在 {self.current_second}s 进入调度队列")
+                    print(f"[schedule] Task {t.id} at {self.current_second}s entered the scheduling queue")
             else:
-                print(f"[调度] {len(released)} 个任务在 {self.current_second}s 进入调度队列")
+                print(f"[schedule] {len(released)} tasks at {self.current_second}s entered the scheduling queue")
 
     def _dispatch_ready_tasks(self):
         """Scan the ready queue fairly and dispatch up to the batch limit."""
@@ -1920,10 +2026,10 @@ class SimulationEngine:
         batch_task_ids = set()
         for task in batch:
             if task.id in batch_task_ids or task.id in self.dispatched_task_ids:
-                print(f"[跳过] 任务 {task.id} 已在本仿真派发，不重复调度")
+                print(f"[skip] Task {task.id} already dispatched in this simulation; skipping")
                 continue
             if task.status != TaskStatus.SCHEDULING:
-                print(f"[跳过] 任务 {task.id} 当前状态为 {task.status.value}，不进入调度")
+                print(f"[skip] Task {task.id} current status is {task.status.value}，not scheduling")
                 continue
             batch_task_ids.add(task.id)
             tasks_to_dispatch.append(task)
@@ -1939,7 +2045,7 @@ class SimulationEngine:
                     task.cancel("exceeded max_wait_hours")
                 except ValueError:
                     pass
-                print(f"[超时] 任务 {task.id} 超过可延后时间，取消调度")
+                print(f"[timeout] Task {task.id} exceeded the maximum wait time; cancelling")
             else:
                 valid_tasks.append(task)
         tasks_to_dispatch = valid_tasks
@@ -2002,12 +2108,12 @@ class SimulationEngine:
                 # validation reliably, but it can launch N additional global
                 # MIP solves for an N-task batch.  Keep the complete batch in
                 # the ready queue and wait for the next grid state instead.
-                print("[优化] 联合优化未通过潮流校验，整批任务保留至后续批次")
+                print("[optimize] Joint optimization failed the power-flow check; retaining the batch for a later cycle")
                 deferred_tasks.extend(tasks_to_dispatch)
                 tasks_to_dispatch = []
                 result = {"status": "ac_validation_failed", "assignments": {}, "start_periods": {}}
             elif result.get("status") not in {"optimal", "optimal_solution", "fallback_feasible"}:
-                print(f"[优化] 联合优化整批不可行 ({result.get('status')})，尝试可行子集")
+                print(f"[optimize] Joint optimization batch infeasible ({result.get('status')}); trying a feasible subset")
                 candidates = list(optimization_tasks)
                 result = {"status": "infeasible", "assignments": {}}
                 while candidates:
@@ -2017,7 +2123,7 @@ class SimulationEngine:
                     deferred = candidates.pop()
                     deferred.allocated_data_center_id = None
                     deferred_tasks.append(deferred)
-                    print(f"[等待] 任务 {deferred.id} 暂缓本批联合优化，等待后续资源")
+                    print(f"[wait] Task {deferred.id} deferred from this joint optimization; waiting for later resources")
 
                 accepted_ids = {task.id for task in candidates}
                 tasks_to_dispatch = [
@@ -2025,7 +2131,7 @@ class SimulationEngine:
                     if task.id in accepted_ids
                 ]
                 if not candidates:
-                    print("[优化] 当前没有获批任务；全部保留至后续批次重新求解")
+                    print("[optimize] No tasks were approved; retaining all tasks for the next solve")
             assignments = result.get("assignments", {})
             start_periods = result.get("start_periods", {})
             # Joint coordination uses the same rolling step as the power
@@ -2128,7 +2234,7 @@ class SimulationEngine:
                             reservation_key = gpu_model if exact_model else "__any__"
                             reserved_gpu[chosen.id][reservation_key] += required_gpu
                     except Exception as e:
-                        print(f"[等待] 任务 {task.id} 暂无可用数据中心，保留在调度队列: {e}")
+                        print(f"[wait] Task {task.id} no datacenter is available; retaining in the scheduling queue: {e}")
                         deferred_tasks.append(task)
             # Tasks that failed this batch's capacity-aware preselection must
             # remain queued; including them in the same COPT model makes the
@@ -2139,7 +2245,7 @@ class SimulationEngine:
             if planned_optimizable_tasks:
                 self._last_renewable_optimization_second = float(current_second)
             if result.get("status") not in {"optimal", "optimal_solution", "fallback_feasible"}:
-                print(f"[优化] 固定选址组合不可行 ({result.get('status')})，尝试跨中心重分配")
+                print(f"[optimize] Fixed placement is infeasible ({result.get('status')}); redistributing across datacenters")
                 for task in planned_optimizable_tasks:
                     task.allocated_data_center_id = None
 
@@ -2160,7 +2266,7 @@ class SimulationEngine:
                     deferred = candidates.pop()
                     deferred.allocated_data_center_id = None
                     deferred_tasks.append(deferred)
-                    print(f"[等待] 任务 {deferred.id} 暂缓本批优化，等待后续资源")
+                print(f"[wait] Task {deferred.id} deferred from this optimization; waiting for later resources")
 
                 if not candidates:
                     self.ready_tasks.extend(deferred_tasks)
@@ -2202,7 +2308,7 @@ class SimulationEngine:
                 else:
                     candidates[0].allocated_data_center_id = None
                     deferred_tasks.append(candidates[0])
-                    print(f"[等待] 任务 {candidates[0].id} 单任务潮流校验仍不可行，等待后续资源")
+                print(f"[wait] Single-task power-flow check for {candidates[0].id} is still infeasible; waiting for later resources")
                 candidates = candidates[1:]
 
         if mode == "hierarchical" and result.get("status") not in {
@@ -2239,7 +2345,7 @@ class SimulationEngine:
                     self._reserve_task_resources(task, chosen_dc)
                     task.allocated_data_center_id = dc_id
                 except Exception as e:
-                    print(f"[等待] 任务 {task.id} 暂无可用数据中心，保留在调度队列: {e}")
+                    print(f"[wait] Task {task.id} no datacenter is available; retaining in the scheduling queue: {e}")
                     deferred_tasks.append(task)
                     continue
             if dc_id in self.dc_sims:
@@ -2248,14 +2354,14 @@ class SimulationEngine:
                     if target_dc is not None:
                         self._reserve_task_resources(task, target_dc)
                 except ValueError as e:
-                    print(f"[等待] 任务 {task.id} 等待数据中心 {dc_id} 释放资源: {e}")
+                    print(f"[wait] Task {task.id} is waiting for datacenter {dc_id} to release resources: {e}")
                     deferred_tasks.append(task)
                     continue
                 task.actual_dispatch_second = float(current_second)
                 for attribute in ("_joint_force_start_now", "_joint_planned_center"):
                     if hasattr(task, attribute):
                         delattr(task, attribute)
-                print(f"[调度] 任务 {task.id} 已分配至 {dc_id}")
+                print(f"[schedule] Task {task.id} assigned to {dc_id}")
                 self.dispatched_task_ids.add(task.id)
                 if mode == "none":
                     heuristic_assignments[task.id] = dc_id
@@ -2263,7 +2369,7 @@ class SimulationEngine:
                 self.env.process(self.dc_sims[dc_id].run_task(task))
                 dispatched_count += 1
             else:
-                print(f"数据中心 {dc_id} 不存在，任务 {task.id} 丢弃")
+                print(f"Datacenter {dc_id} does not exist; Task {task.id} discarded")
 
         # Rotate blocked work to the tail instead of retrying the same queue
         # prefix forever.
@@ -2273,7 +2379,7 @@ class SimulationEngine:
                 heuristic_assignments, heuristic_tasks
             )
 
-    #  统计与输出
+    # Implementation note.
 
     def _running_compute_by_datacenter(self) -> Dict[str, Dict[str, float | str]]:
         """Return the instantaneous running compute load for each data center."""
@@ -2311,8 +2417,8 @@ class SimulationEngine:
         return summary
 
     def _record_stats(self):
-        """统计并输出（含碳排放和电压稳定裕度）"""
-        # 汇总所有数据中心正在运行的任务
+        """Implementation documentation."""
+        # Implementation note.
         all_running = []
         for sim in self.dc_sims.values():
             all_running.extend(sim.running_tasks)
@@ -2321,13 +2427,13 @@ class SimulationEngine:
         for task in all_running:
             stats[getattr(task, 'task_type', 'unknown')] += 1
 
-        # 时间格式化
+        # Implementation note.
         s = self.current_second
         hours = s // 3600
         minutes = (s % 3600) // 60
         seconds = s % 60
 
-        # 电网状态
+        # Implementation note.
         total_load = self.pp_adapter.get_total_load()
         total_gen = self.pp_adapter.get_total_generation()
         generation_breakdown = (
@@ -2396,7 +2502,7 @@ class SimulationEngine:
             "none": "heuristic", "hierarchical": "local", "joint": "global",
         }[normalized_mode]
 
-        # 各数据中心碳排放
+        # Implementation note.
         dc_emissions = {}
         for dc_id, sim in self.dc_sims.items():
             dc_emissions[dc_id] = {
@@ -2405,7 +2511,7 @@ class SimulationEngine:
                 'emission_kg': sim.total_emission_kg,
             }
 
-        #  连续潮流分析
+        # Implementation note.
         cpf_result = None
         if self._periodic_due(
             "_last_cpf_second", getattr(self, "cpf_interval_seconds", 30)
@@ -2416,7 +2522,7 @@ class SimulationEngine:
                 )
                 self.last_cpf_result = cpf_result
             except Exception as e:
-                print(f"CPF 分析失败: {e}")
+                print(f"CPF analysis failed: {e}")
         effective_cpf = cpf_result or getattr(self, "last_cpf_result", None) or {}
         grid_health = calculate_grid_health(
             converged=effective_cpf.get("converged", getattr(self.pp_adapter, "_power_flow_valid", None)),
@@ -2426,8 +2532,17 @@ class SimulationEngine:
             reserve_capacity_mw=reserve_capacity_mw,
             total_load_mw=displayed_total_load,
         )
+        debug_surplus = (
+                self.pp_adapter.renewable_available_mw.get("wind", 0.0)
+                + self.pp_adapter.renewable_available_mw.get("pv", 0.0)
+                + generation_breakdown.get("base_generation_mw", 0.0)
+                - displayed_total_load
+        )
+        current_storage_power = sum(
+            float(storage.current_power_mw) for storage in self.storages.values()
+        )
 
-        # 记录
+        # Implementation note.
         record = {
             'second': self.current_second,
             'time_str': f"{hours:02d}:{minutes:02d}:{seconds:02d}",
@@ -2527,41 +2642,41 @@ class SimulationEngine:
         ):
             self._write_visual_report(record)
 
-        #  打印 
+        # Implementation note.
         print(f"\n{'=' * 60}")
-        print(f"统计 #{self.stats_count}  |  仿真时间: {record['time_str']}  |  间隔: {self.stats_interval_seconds}s")
+        print(f"Statistics #{self.stats_count}  |  Simulation time: {record['time_str']}  |  Interval: {self.stats_interval_seconds}s")
         print(f"{'=' * 60}")
         print(
-            f"  运行任务: {len(all_running)}  |  待释放: {len(self.pending_tasks)}  |  待调度: {len(self.ready_tasks)}")
-        print(f"  电网总负荷: {total_load:.2f} MW  |  总发电: {total_gen:.2f} MW")
+            f"  Running tasks: {len(all_running)}  |  Pending release: {len(self.pending_tasks)}  |  Ready to schedule: {len(self.ready_tasks)}")
+        print(f"  Total grid load: {total_load:.2f} MW  |  Total generation: {total_gen:.2f} MW")
         print(format_emission_log(total_emission))
 
         if len(all_running) > 0:
             for t, cnt in stats.items():
                 pct = cnt / len(all_running) * 100
                 # bar = "█" * int(pct / 5) + "░" * (20 - int(pct / 5))
-                # print(f"    {t:20s}: {cnt:2d} 个 ({pct:5.1f}%) {bar}")
+                # print(f"    {t:20s}: {cnt:2d} tasks ({pct:5.1f}%) {bar}")
         else:
             print(format_idle_log())
 
-        # 数据中心碳排放
+        # Implementation note.
         has_emission = any(info['energy_mwh'] > 0 for info in dc_emissions.values())
         if has_emission:
-            print(f"\n数据中心碳排放累计:")
+            print(f"\nCumulative datacenter emissions:")
             for dc_id, info in dc_emissions.items():
                 if info['energy_mwh'] > 0:
                     print(f"    {info['name']} ({dc_id}): "
-                          f"用电 {info['energy_mwh']:.2f} MWh, "
-                          f"排放 {info['emission_kg']:.1f} kgCO₂")
+                          f"Energy {info['energy_mwh']:.2f} MWh, "
+                          f"Emissions {info['emission_kg']:.1f} kgCO₂")
 
-        # 连续潮流结果
+        # Implementation note.
         if cpf_result is not None:
-            print(f"\n电压稳定分析 (连续潮流):")
-            print(f"临界负荷倍数: {cpf_result['lambda_critical']:.2f} pu")
-            print(f"电压稳定裕度: {cpf_result['voltage_margin_pct']:.1f}%")
-            print(f"临界点最低电压: {cpf_result['min_voltage_at_critical']:.3f} pu")
+            print(f"\nVoltage stability analysis (continuation power flow):")
+            print(f"Critical load multiplier: {cpf_result['lambda_critical']:.2f} pu")
+            print(f"Voltage stability margin: {cpf_result['voltage_margin_pct']:.1f}%")
+            print(f"Minimum voltage at critical point: {cpf_result['min_voltage_at_critical']:.3f} pu")
 
-    #  外部查询接口
+    # Implementation note.
 
     def _task_summary(self) -> Dict:
         tasks = list(getattr(self, "task_registry", {}).values())
@@ -2940,13 +3055,13 @@ class SimulationEngine:
         path.write_text((path.parent / "grid_power.svg").read_text(encoding="utf-8"), encoding="utf-8")
 
     def get_stats_at(self, second: int = None) -> Dict:
-        """获取指定秒数的统计记录"""
+        """Implementation documentation."""
         if second is None:
             second = self.current_second
         return self.stats_records.get(second, {})
 
     def get_latest_stats(self) -> Dict:
-        """获取最新统计记录"""
+        """Implementation documentation."""
         latest = self.get_stats_at()
         if latest:
             return latest
@@ -2962,10 +3077,10 @@ class SimulationEngine:
         return [self.stats_records[second] for second in sorted(self.stats_records)]
 
     def get_hourly_stats(self, hour: int = None) -> Dict:
-        """兼容旧接口：获取指定小时的统计（按小时汇总）"""
+        """Implementation documentation."""
         if hour is None:
             hour = self.current_second // 3600
-        # 找到该小时内最后一次统计
+        # Implementation note.
         target_second = hour * 3600
         candidates = [s for s in self.stats_records.keys() if s <= target_second]
         if candidates:
@@ -2973,7 +3088,7 @@ class SimulationEngine:
         return {}
 
     def get_total_carbon_summary(self) -> Dict:
-        """获取所有数据中心碳排放汇总"""
+        """Implementation documentation."""
         total_energy = sum(sim.total_energy_mwh for sim in self.dc_sims.values())
         total_emission = sum(sim.total_emission_kg for sim in self.dc_sims.values())
         return {
@@ -2991,7 +3106,7 @@ class SimulationEngine:
         }
 
     def stop(self):
-        """停止仿真"""
+        """Implementation documentation."""
         self.running = False
         # Rebuild the visual reports from the complete sampled history when a
         # run ends, so the saved 24-hour charts include the final sample even
@@ -3001,4 +3116,4 @@ class SimulationEngine:
             report_dir.mkdir(parents=True, exist_ok=True)
             self._write_svg_report(report_dir / "simulation_dashboard.svg")
         print(format_total_cost_log(getattr(self, "total_operating_cost_yuan", 0.0)))
-        print("仿真引擎已停止")
+        print("Simulation engine stopped")

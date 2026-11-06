@@ -9,7 +9,7 @@ from src.api.task_routes import router
 
 
 def create_app(engine=None, *, synthetic_seed: int = 42, engine_factory=None) -> FastAPI:
-    app = FastAPI(title="算电协同平台")
+    app = FastAPI(title="Computing-Power Synergy Platform")
 
     @app.middleware("http")
     async def disable_dashboard_cache(request, call_next):

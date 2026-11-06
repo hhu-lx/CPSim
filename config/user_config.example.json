@@ -20,7 +20,7 @@
   "data_centers": [
     {
       "id": "DC1",
-      "name": "北京中心",
+      "name": "Datacenter A",
       "region": "region_a",
       "grid_bus_id": 3,
       "total_compute": 250.0,
@@ -33,7 +33,7 @@
     },
     {
       "id": "DC2",
-      "name": "上海中心",
+      "name": "Datacenter B",
       "region": "region_a",
       "grid_bus_id": 16,
       "total_compute": 200.0,
@@ -46,7 +46,7 @@
     },
     {
       "id": "DC3",
-      "name": "深圳中心",
+      "name": "Datacenter C",
       "region": "region_b",
       "grid_bus_id": 21,
       "total_compute": 300.0,
