@@ -135,6 +135,25 @@ def format_total_cost_log(total_cost_yuan: float) -> str:
     return f"  Total operating cost: {float(total_cost_yuan):,.2f} CNY"
 
 
+def calculate_training_average_latency(tasks) -> float | None:
+    """Return mean end-to-end latency for completed AI training tasks."""
+    latencies = []
+    for task in tasks or []:
+        task_type = str(getattr(task, "task_type", "")).casefold()
+        submitted = getattr(task, "submitted_at", None)
+        completed = getattr(task, "actual_end_second", None)
+        if task_type != "ai_training" or submitted is None or completed is None:
+            continue
+        latencies.append(max(0.0, float(completed) - float(submitted)))
+    return sum(latencies) / len(latencies) if latencies else None
+
+
+def format_training_latency_log(latency_seconds: float | None) -> str:
+    if latency_seconds is None:
+        return "  Average training task latency: N/A"
+    return f"  Average training task latency: {float(latency_seconds):.2f} s"
+
+
 def _merge_frontend_config(base: dict, user: dict) -> dict:
     """Translate frontend JSON sections into the engine's legacy config shape."""
     import copy
@@ -2802,16 +2821,22 @@ class SimulationEngine:
             def y(value):
                 return bottom - (clean(value) - ymin) / span * (bottom - top)
             svg = [
-                f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
+                f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" font-family="Times New Roman, serif">',
                 '<rect width="100%" height="100%" fill="white"/>',
                 f'<line x1="{left}" y1="{bottom}" x2="{right}" y2="{bottom}" stroke="#555"/>',
                 f'<line x1="{left}" y1="{top}" x2="{left}" y2="{bottom}" stroke="#555"/>',
-                f'<text x="18" y="{(top + bottom) / 2:.0f}" font-size="15" text-anchor="middle" transform="rotate(-90 18 {(top + bottom) / 2:.0f})">{ylabel}</text>',
-                f'<text x="{(left + right) / 2:.0f}" y="535" font-size="15" text-anchor="middle">{xlabel}</text>',
+                f'<text x="18" y="{(top + bottom) / 2:.0f}" fill="#000" font-size="18" text-anchor="middle" transform="rotate(-90 18 {(top + bottom) / 2:.0f})">{ylabel}</text>',
+                f'<text x="{(left + right) / 2:.0f}" y="535" fill="#000" font-size="18" text-anchor="middle">{xlabel}</text>',
             ]
+            for tick_index in range(5):
+                ratio = tick_index / 4
+                value = ymin + span * ratio
+                y_tick = y(value)
+                svg.append(f'<line x1="{left}" y1="{y_tick:.1f}" x2="{right}" y2="{y_tick:.1f}" stroke="#d5dbe3"/>')
+                svg.append(f'<text x="{left - 10}" y="{y_tick + 5:.1f}" fill="#000" font-size="15" text-anchor="end">{value:.1f}</text>')
             for hour in (0, 6, 12, 18, 24):
                 x_tick = left + hour / 24 * (right - left)
-                svg.append(f'<text x="{x_tick:.1f}" y="487" font-size="12" text-anchor="middle">{hour}</text>')
+                svg.append(f'<text x="{x_tick:.1f}" y="487" fill="#000" font-size="15" text-anchor="middle">{hour}</text>')
             for series_index, (label, color, values) in enumerate(series):
                 coords = []
                 for i, value in enumerate(values):
@@ -2824,7 +2849,7 @@ class SimulationEngine:
                 legend_x = left + legend_col * 270
                 legend_y = 30 + legend_row * 18
                 svg.append(f'<rect x="{legend_x}" y="{legend_y - 10}" width="12" height="12" fill="{color}"/>')
-                svg.append(f'<text x="{legend_x + 18}" y="{legend_y}" fill="{color}" font-size="14">{legend_name(label)}</text>')
+                svg.append(f'<text x="{legend_x + 18}" y="{legend_y}" fill="#000" font-size="16">{legend_name(label)}</text>')
             target.write_text("".join(svg) + '</svg>', encoding="utf-8")
 
         def make_stacked_generation_chart(target: Path, series: list[tuple[str, str, list[float]]]):
@@ -2857,16 +2882,22 @@ class SimulationEngine:
                 return bottom - value / ymax * (bottom - top)
 
             svg = [
-                f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
+                f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" font-family="Times New Roman, serif">',
                 '<rect width="100%" height="100%" fill="white"/>',
                 f'<line x1="{left}" y1="{bottom}" x2="{right}" y2="{bottom}" stroke="#9eb0c2"/>',
                 f'<line x1="{left}" y1="{top}" x2="{left}" y2="{bottom}" stroke="#9eb0c2"/>',
-                f'<text x="18" y="{(top + bottom) / 2:.0f}" font-size="15" text-anchor="middle" transform="rotate(-90 18 {(top + bottom) / 2:.0f})">Power (MW)</text>',
-                f'<text x="{(left + right) / 2:.0f}" y="535" font-size="15" text-anchor="middle">Time (h)</text>',
+                f'<text x="18" y="{(top + bottom) / 2:.0f}" fill="#000" font-size="18" text-anchor="middle" transform="rotate(-90 18 {(top + bottom) / 2:.0f})">Power (MW)</text>',
+                f'<text x="{(left + right) / 2:.0f}" y="535" fill="#000" font-size="18" text-anchor="middle">Time (h)</text>',
             ]
+            for tick_index in range(5):
+                ratio = tick_index / 4
+                value = ymax * ratio
+                y_tick = y_at(value)
+                svg.append(f'<line x1="{left}" y1="{y_tick:.1f}" x2="{right}" y2="{y_tick:.1f}" stroke="#d5dbe3"/>')
+                svg.append(f'<text x="{left - 10}" y="{y_tick + 5:.1f}" fill="#000" font-size="15" text-anchor="end">{value:.1f}</text>')
             for hour in (0, 6, 12, 18, 24):
                 x_tick = left + hour / 24 * (right - left)
-                svg.append(f'<text x="{x_tick:.1f}" y="487" font-size="12" text-anchor="middle">{hour}</text>')
+                svg.append(f'<text x="{x_tick:.1f}" y="487" fill="#000" font-size="15" text-anchor="middle">{hour}</text>')
 
             lower = [0.0] * len(points)
             for series_index, (label, color, _) in enumerate(series):
@@ -2892,7 +2923,7 @@ class SimulationEngine:
                 legend_x = 110 + legend_col * 270
                 legend_y = 58 + legend_row * 20
                 svg.append(f'<rect x="{legend_x}" y="{legend_y - 9}" width="12" height="12" fill="{color}"/>')
-                svg.append(f'<text x="{legend_x + 18}" y="{legend_y}" fill="{color}" font-size="13">{legend_name(label)}</text>')
+                svg.append(f'<text x="{legend_x + 18}" y="{legend_y}" fill="#000" font-size="16">{legend_name(label)}</text>')
             target.write_text("".join(svg) + '</svg>', encoding="utf-8")
 
         def make_supply_storage_chart(target: Path):
@@ -2921,32 +2952,35 @@ class SimulationEngine:
                 return zero - clean(value) / storage_abs_max * (bottom - top) / 2
 
             svg = [
-                f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
+                f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" font-family="Times New Roman, serif">',
                 '<rect width="100%" height="100%" fill="white"/>',
                 f'<line x1="{left}" y1="{(top + bottom) / 2:.1f}" x2="{right}" y2="{(top + bottom) / 2:.1f}" stroke="#9eb0c2"/>',
                 f'<line x1="{left}" y1="{top}" x2="{left}" y2="{bottom}" stroke="#9eb0c2"/>',
-                f'<text x="18" y="{(top + bottom) / 2:.0f}" font-size="15" text-anchor="middle" transform="rotate(-90 18 {(top + bottom) / 2:.0f})">Net Load (MW)</text>',
-                f'<text x="982" y="{(top + bottom) / 2:.0f}" font-size="15" text-anchor="middle" transform="rotate(90 982 {(top + bottom) / 2:.0f})">Storage Power (MW)</text>',
-                f'<text x="{(left + right) / 2:.0f}" y="535" font-size="15" text-anchor="middle">Time (h)</text>',
+                f'<text x="18" y="{(top + bottom) / 2:.0f}" fill="#000" font-size="18" text-anchor="middle" transform="rotate(-90 18 {(top + bottom) / 2:.0f})">Net Load (MW)</text>',
+                f'<text x="982" y="{(top + bottom) / 2:.0f}" fill="#000" font-size="18" text-anchor="middle" transform="rotate(90 982 {(top + bottom) / 2:.0f})">Storage Power (MW)</text>',
+                f'<text x="{(left + right) / 2:.0f}" y="535" fill="#000" font-size="18" text-anchor="middle">Time (h)</text>',
             ]
+            for tick_index in range(5):
+                ratio = tick_index / 4
+                left_value = left_abs_max * (ratio * 2 - 1)
+                right_value = storage_abs_max * (ratio * 2 - 1)
+                y_tick = top + (1 - ratio) * (bottom - top)
+                svg.append(f'<line x1="{left}" y1="{y_tick:.1f}" x2="{right}" y2="{y_tick:.1f}" stroke="#d5dbe3"/>')
+                svg.append(f'<text x="{left - 10}" y="{y_tick + 5:.1f}" fill="#000" font-size="15" text-anchor="end">{left_value:.1f}</text>')
+                svg.append(f'<text x="{right + 10}" y="{y_tick + 5:.1f}" fill="#000" font-size="15" text-anchor="start">{right_value:.1f}</text>')
             for hour in (0, 6, 12, 18, 24):
                 x_tick = left + hour / 24 * (right - left)
-                svg.append(f'<text x="{x_tick:.1f}" y="487" font-size="12" text-anchor="middle">{hour}</text>')
+                svg.append(f'<text x="{x_tick:.1f}" y="487" fill="#000" font-size="15" text-anchor="middle">{hour}</text>')
             lower = [0.0] * len(points)
             for label, color, values in [
-                ("Wind Input (MW)", "#6f9aa8", wind_values),
-                ("PV Input (MW)", "#c5a56a", pv_values),
+                ("Wind Input (MW)", "#75b875", wind_values),
+                ("PV Input (MW)", "#d97706", pv_values),
             ]:
                 upper = [lower[i] + values[i] for i in range(len(points))]
                 polygon = [(x_at(i), y_left(upper[i])) for i in range(len(points))]
                 polygon += [(x_at(i), y_left(lower[i])) for i in reversed(range(len(points)))]
                 svg.append(f'<polygon fill="{color}" fill-opacity="0.60" stroke="{color}" stroke-width="0.8" points="{" ".join(f"{x:.1f},{y:.1f}" for x,y in polygon)}"/>')
                 lower = upper
-            for label, color, values in [
-                ("Net Load (MW)", "#385b6a", net_load_values),
-            ]:
-                coords = " ".join(f"{x_at(i):.1f},{y_left(value):.1f}" for i, value in enumerate(values))
-                svg.append(f'<polyline fill="none" stroke="{color}" stroke-width="3" points="{coords}"/>')
             zero_y = (top + bottom) / 2
             svg.append(f'<line x1="{left}" y1="{zero_y:.1f}" x2="{right}" y2="{zero_y:.1f}" stroke="#8f8792" stroke-dasharray="4 3"/>')
             bar_width = max(1.0, (right - left) / max(1, len(points)) * 0.72)
@@ -2954,27 +2988,29 @@ class SimulationEngine:
                 y_value = y_storage(value)
                 y_rect = min(zero_y, y_value)
                 h_rect = max(1.0, abs(y_value - zero_y))
-                color = "#806c88" if value >= 0 else "#b07a7a"
+                color = "#b39ddb" if value >= 0 else "#90caf9"
                 svg.append(f'<rect x="{x_at(i) - bar_width / 2:.1f}" y="{y_rect:.1f}" width="{bar_width:.1f}" height="{h_rect:.1f}" fill="{color}" fill-opacity="0.42"/>')
+            load_coords = " ".join(f"{x_at(i):.1f},{y_left(value):.1f}" for i, value in enumerate(net_load_values))
+            svg.append(f'<polyline fill="none" stroke="#8b5a2b" stroke-width="4" points="{load_coords}"/>')
             legend = [
-                ("Net Load (MW)", "#385b6a"), ("Wind Input (MW)", "#6f9aa8"),
-                ("PV Input (MW)", "#c5a56a"), ("Storage Discharge (MW)", "#806c88"),
-                ("Storage Charge (MW)", "#b07a7a"),
+                ("Net Load (MW)", "#8b5a2b"), ("Wind Input (MW)", "#75b875"),
+                ("PV Input (MW)", "#d97706"), ("Storage Discharge (MW)", "#b39ddb"),
+                ("Storage Charge (MW)", "#90caf9"),
             ]
             for index, (label, color) in enumerate(legend):
                 x = left + (index % 3) * 270
                 y = 58 + (index // 3) * 20
                 svg.append(f'<rect x="{x}" y="{y - 9}" width="12" height="12" fill="{color}"/>')
-                svg.append(f'<text x="{x + 18}" y="{y}" fill="{color}" font-size="13">{legend_name(label)}</text>')
+                svg.append(f'<text x="{x + 18}" y="{y}" fill="#000" font-size="16">{legend_name(label)}</text>')
             target.write_text("".join(svg) + '</svg>', encoding="utf-8")
 
         generation_series = [
-            ("Base Generation (MW)", "#b7d9b1", [p.get("base_generation_mw", 0) for p in points]),
+            ("Base Generation (MW)", "#60b0f4", [p.get("base_generation_mw", 0) for p in points]),
             ("Conventional Generation (MW)", "#f5c99d", [p.get("conventional_generation_mw", 0) for p in points]),
-            ("Wind Generation (MW)", "#8eb9c8", [p.get("wind_generation_mw", 0) for p in points]),
-            ("PV Generation (MW)", "#e0bd72", [p.get("pv_generation_mw", 0) for p in points]),
-            ("Storage Discharge (MW)", "#a895b8", [p.get("storage_discharge_mw", 0) for p in points]),
-            ("Grid Import (MW)", "#b58f86", [p.get("grid_import_mw", 0) for p in points]),
+            ("Wind Generation (MW)", "#b2d990", [p.get("wind_generation_mw", 0) for p in points]),
+            ("PV Generation (MW)", "#fbd0b0", [p.get("pv_generation_mw", 0) for p in points]),
+            ("Storage Discharge (MW)", "#7a1fa2", [p.get("storage_discharge_mw", 0) for p in points]),
+            ("Grid Import (MW)", "#d45959", [p.get("grid_import_mw", 0) for p in points]),
         ]
         make_stacked_generation_chart(path.parent / "generation_24h.svg", generation_series)
         make_supply_storage_chart(path.parent / "supply_storage_24h.svg")
@@ -2998,8 +3034,8 @@ class SimulationEngine:
             ("Compute Mapping Power (MW)", "#17becf", [p.get("compute_power_mw", 0) for p in points])
         ], "Power (MW)")
         make_chart(path.parent / "task_power_24h.svg", [
-            ("Planned Task Power (MW)", "#6f9aa8", [p.get("planned_task_power_mw", 0) for p in points]),
-            ("Actual Task Power (MW)", "#a7836d", [p.get("actual_task_power_mw", 0) for p in points]),
+            ("Planned Task Power (MW)", "#5a97d0", [p.get("planned_task_power_mw", 0) for p in points]),
+            ("Actual Task Power (MW)", "#d45959", [p.get("actual_task_power_mw", 0) for p in points]),
         ], "Power (MW)")
 
         # Storage power uses the dispatch convention: positive is discharge and
@@ -3012,45 +3048,57 @@ class SimulationEngine:
         panels = ((55, 340), (430, 680))
         max_power = max([abs(v) for v in storage_power] or [1.0]) or 1.0
         max_soc = max([100.0] + storage_soc)
-        svg = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">', '<rect width="100%" height="100%" fill="white"/>']
+        svg = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" font-family="Times New Roman, serif">', '<rect width="100%" height="100%" fill="white"/>']
         power_top, power_bottom = panels[0]
         zero_y = power_bottom - max_power / (2 * max_power) * (power_bottom - power_top)
         horizon_seconds = max(24 * 3600, max((clean(p.get("second", 0)) for p in points), default=0.0))
         svg.extend([
             f'<line x1="{left}" y1="{power_top}" x2="{left}" y2="{power_bottom}" stroke="#555"/>',
             f'<line x1="{left}" y1="{zero_y:.1f}" x2="{right}" y2="{zero_y:.1f}" stroke="#555"/>',
-            f'<text x="18" y="{(power_top + power_bottom) / 2:.0f}" font-size="15" text-anchor="middle" transform="rotate(-90 18 {(power_top + power_bottom) / 2:.0f})">Storage Power (MW)</text>',
+            f'<text x="18" y="{(power_top + power_bottom) / 2:.0f}" fill="#000" font-size="18" text-anchor="middle" transform="rotate(-90 18 {(power_top + power_bottom) / 2:.0f})">Storage Power (MW)</text>',
         ])
+        for tick_index in range(5):
+            ratio = tick_index / 4
+            value = max_power * (1 - 2 * ratio)
+            y_tick = power_top + ratio * (power_bottom - power_top)
+            svg.append(f'<line x1="{left}" y1="{y_tick:.1f}" x2="{right}" y2="{y_tick:.1f}" stroke="#d5dbe3"/>')
+            svg.append(f'<text x="{left - 10}" y="{y_tick + 5:.1f}" fill="#000" font-size="15" text-anchor="end">{value:.1f}</text>')
         bar_width = max(1.0, (right - left) / 24.0 * 0.18)
         for second, value in storage_power_samples:
             x = left + min(horizon_seconds, max(0.0, second)) / horizon_seconds * (right - left)
             y_value = zero_y - value / (2 * max_power) * (power_bottom - power_top)
             y_rect = min(zero_y, y_value)
             h_rect = max(1.0, abs(y_value - zero_y))
-            color = "#2ca02c" if value >= 0 else "#1f77b4"
+            color = "#7a1fa2" if value >= 0 else "#0057b8"
             svg.append(f'<rect x="{x - bar_width / 2:.1f}" y="{y_rect:.1f}" width="{bar_width:.1f}" height="{h_rect:.1f}" fill="{color}" fill-opacity="0.45"/>')
         svg.extend([
-            f'<text x="{left + 15}" y="{power_top + 20}" fill="#2ca02c" font-size="14">Discharge Power</text>',
-            f'<text x="{left + 190}" y="{power_top + 20}" fill="#1f77b4" font-size="14">Charge Power</text>',
+            f'<text x="{left + 15}" y="{power_top + 20}" fill="#000" font-size="16">Discharge Power</text>',
+            f'<text x="{left + 190}" y="{power_top + 20}" fill="#000" font-size="16">Charge Power</text>',
         ])
         soc_top, soc_bottom = panels[1]
         svg.extend([
             f'<line x1="{left}" y1="{soc_top}" x2="{left}" y2="{soc_bottom}" stroke="#555"/>',
             f'<line x1="{left}" y1="{soc_bottom}" x2="{right}" y2="{soc_bottom}" stroke="#555"/>',
-            f'<text x="18" y="{(soc_top + soc_bottom) / 2:.0f}" font-size="15" text-anchor="middle" transform="rotate(-90 18 {(soc_top + soc_bottom) / 2:.0f})">State of Charge (%)</text>',
-            f'<text x="{(left + right) / 2:.0f}" y="735" font-size="15" text-anchor="middle">Time (h)</text>',
+            f'<text x="18" y="{(soc_top + soc_bottom) / 2:.0f}" fill="#000" font-size="18" text-anchor="middle" transform="rotate(-90 18 {(soc_top + soc_bottom) / 2:.0f})">State of Charge (%)</text>',
+            f'<text x="{(left + right) / 2:.0f}" y="735" fill="#000" font-size="18" text-anchor="middle">Time (h)</text>',
         ])
+        for tick_index in range(5):
+            ratio = tick_index / 4
+            value = max_soc * (1 - ratio)
+            y_tick = soc_top + ratio * (soc_bottom - soc_top)
+            svg.append(f'<line x1="{left}" y1="{y_tick:.1f}" x2="{right}" y2="{y_tick:.1f}" stroke="#d5dbe3"/>')
+            svg.append(f'<text x="{left - 10}" y="{y_tick + 5:.1f}" fill="#000" font-size="15" text-anchor="end">{value:.1f}</text>')
         for hour in (0, 6, 12, 18, 24):
             x_tick = left + hour / 24 * (right - left)
-            svg.append(f'<text x="{x_tick:.1f}" y="700" font-size="12" text-anchor="middle">{hour}</text>')
+            svg.append(f'<text x="{x_tick:.1f}" y="700" fill="#000" font-size="15" text-anchor="middle">{hour}</text>')
         soc_points = []
         for i, value in enumerate(storage_soc):
             second = clean(points[i].get("second", i)) if i < len(points) else i
             x = left + min(horizon_seconds, max(0.0, second)) / horizon_seconds * (right - left)
             y_value = soc_bottom - value / max_soc * (soc_bottom - soc_top)
             soc_points.append((x, y_value))
-        svg.append(f'<polyline fill="none" stroke="#9467bd" stroke-width="3" points="{" ".join(f"{x:.1f},{yy:.1f}" for x,yy in soc_points)}"/>')
-        svg.append(f'<text x="{left + 15}" y="{soc_top + 20}" fill="#9467bd" font-size="14">SOC</text>')
+        svg.append(f'<polyline fill="none" stroke="#7a1fa2" stroke-width="3" points="{" ".join(f"{x:.1f},{yy:.1f}" for x,yy in soc_points)}"/>')
+        svg.append(f'<text x="{left + 15}" y="{soc_top + 20}" fill="#000" font-size="16">SOC</text>')
         (path.parent / "storage_dispatch.svg").write_text("".join(svg) + '</svg>', encoding="utf-8")
         path.write_text((path.parent / "grid_power.svg").read_text(encoding="utf-8"), encoding="utf-8")
 
@@ -3115,5 +3163,10 @@ class SimulationEngine:
             report_dir = Path(getattr(self, "report_dir", Path("reports")))
             report_dir.mkdir(parents=True, exist_ok=True)
             self._write_svg_report(report_dir / "simulation_dashboard.svg")
+        print(format_training_latency_log(
+            calculate_training_average_latency(
+                getattr(self, "task_registry", {}).values()
+            )
+        ))
         print(format_total_cost_log(getattr(self, "total_operating_cost_yuan", 0.0)))
         print("Simulation engine stopped")

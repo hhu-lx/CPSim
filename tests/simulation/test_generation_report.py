@@ -8,6 +8,8 @@ from src.simulation.engine import (
     format_total_cost_log,
     display_load_with_network_loss,
     aggregate_storage_power_samples,
+    calculate_training_average_latency,
+    format_training_latency_log,
 )
 from src.domain.task import Task
 
@@ -40,6 +42,20 @@ def test_net_load_uses_initial_load_plan_and_actual_compute():
 
 def test_total_cost_console_line_is_currency_formatted():
     assert format_total_cost_log(1234.5) == "  总运行成本: 1,234.50 元"
+
+
+def test_training_average_latency_uses_submission_to_completion_for_training_only():
+    training = Task(
+        id="training", user_id="u", task_type="AI_TRAINING", required_compute=1,
+        duration_hours=1, submitted_at=10, actual_end_second=70,
+    )
+    web = Task(
+        id="web", user_id="u", task_type="WEB_SERVICE", required_compute=1,
+        duration_hours=1, submitted_at=0, actual_end_second=100,
+    )
+
+    assert calculate_training_average_latency([training, web]) == 60.0
+    assert format_training_latency_log(60.0) == "  Average training task latency: 60.00 s"
 
 
 def test_display_load_includes_network_loss_for_power_balance():

@@ -158,3 +158,4 @@
 .dc-flow div { align-items: center; }
 .dc-flow strong, .dc-flow span { line-height: 1.25; }
 .grid-core small { white-space: nowrap; font-size: 9px; }
+.chart, .chart h3 { font-family: "Times New Roman", serif; color: #000; }

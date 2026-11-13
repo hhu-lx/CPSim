@@ -8,13 +8,13 @@
     const values = (key) => source.map(record => Number(record?.[key] || 0));
     return {
       power: [
-        { label: 'Total Load', color: '#274c5e', values: values('total_load') },
-        { label: 'Total Generation', color: '#b35f3f', values: values('total_generation') },
+        { label: 'Total Load', color: '#0057b8', values: values('total_load') },
+        { label: 'Total Generation', color: '#d62828', values: values('total_generation') },
       ],
       renewable: [
-        { label: 'Available Renewable', color: '#1478e8', values: values('renewable_available_mw') },
-        { label: 'Consumed Renewable', color: '#159d93', values: values('renewable_consumed_mw') },
-        { label: 'Curtailed Renewable', color: '#e3a33d', values: values('renewable_curtailed_mw') },
+        { label: 'Available Renewable', color: '#0066cc', values: values('renewable_available_mw') },
+        { label: 'Consumed Renewable', color: '#009e73', values: values('renewable_consumed_mw') },
+        { label: 'Curtailed Renewable', color: '#f08a00', values: values('renewable_curtailed_mw') },
       ],
     };
   }
@@ -92,16 +92,16 @@
     const storage = values('storage_power_mw').map(value => Math.max(0, value));
     return {
       generation: [
-        { label: 'Fixed Base Generation', color: '#7f8c8d', values: values('base_generation_mw') },
-        { label: 'Dispatchable Generation', color: '#7895ad', values: values('conventional_generation_mw') },
-        { label: 'External Grid Import', color: '#df6b5b', values: values('grid_import_mw') },
-        { label: 'Wind', color: '#159d93', values: wind },
-        { label: 'Solar', color: '#e3a33d', values: pv },
-        { label: 'Storage Discharge', color: '#8064a2', values: storage },
+        { label: 'Fixed Base Generation', color: '#4d4d4d', values: values('base_generation_mw') },
+        { label: 'Dispatchable Generation', color: '#1f77b4', values: values('conventional_generation_mw') },
+        { label: 'External Grid Import', color: '#d62828', values: values('grid_import_mw') },
+        { label: 'Wind', color: '#008f5a', values: wind },
+        { label: 'Solar', color: '#d97706', values: pv },
+        { label: 'Storage Discharge', color: '#b39ddb', values: storage },
       ],
       lines: [
-        { label: 'Total Load', color: '#274c5e', values: values('total_load') },
-        { label: 'Grid Exchange', color: '#df6b5b', values: values('grid_exchange_mw') },
+        { label: 'Total Load', color: '#111827', values: values('total_load') },
+        { label: 'Grid Exchange', color: '#d62828', values: values('grid_exchange_mw') },
       ],
     };
   }

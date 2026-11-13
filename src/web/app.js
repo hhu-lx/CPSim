@@ -76,14 +76,29 @@
     });
   }
 
+  const chartFont = "font-family='Times New Roman, serif'";
+  const chartText = (x, y, text, size = 12, anchor = 'end', color = '#000') => `<text x="${x}" y="${y}" fill="${color}" font-size="${size}" text-anchor="${anchor}" ${chartFont}>${text}</text>`;
+  const chartLegendItem = (x, y, label, color, marker = 'line') => {
+    const mark = marker === 'square'
+      ? `<rect x="${x}" y="${y - 10}" width="10" height="10" fill="${color}"/>`
+      : `<line x1="${x}" y1="${y - 5}" x2="${x + 12}" y2="${y - 5}" stroke="${color}" stroke-width="2.5"/>`;
+    return `${mark}<text x="${x + 16}" y="${y}" fill="#000" font-size="12" ${chartFont}>${label}</text>`;
+  };
+  const yTickLabels = (max, pad, height, chartHeight, count = 4) => Array.from({ length: count + 1 }, (_, index) => {
+    const ratio = index / count;
+    const y = height - pad.b - ratio * chartHeight;
+    return chartText(pad.l - 5, y + 4, (max * ratio).toFixed(max >= 100 ? 0 : 1), 12);
+  }).join('');
+
   function lineChart(target, series) {
     const width = 520, height = 145, pad = { l: 34, r: 12, t: 9, b: 24 };
     const values = series.flatMap(s => s.values); const max = Math.max(1, ...values); const count = Math.max(2, ...series.map(s => s.values.length));
-    const points = (values) => values.map((v, i) => `${pad.l + i * (width - pad.l - pad.r) / (count - 1)},${height - pad.b - Number(v || 0) / max * (height - pad.t - pad.b)}`).join(' ');
-    const grid = [0, .5, 1].map(r => `<line x1="${pad.l}" y1="${height - pad.b - r * (height - pad.t - pad.b)}" x2="${width - pad.r}" y2="${height - pad.b - r * (height - pad.t - pad.b)}" stroke="#e5edf5"/>`).join('');
+    const chartHeight = height - pad.t - pad.b;
+    const points = (values) => values.map((v, i) => `${pad.l + i * (width - pad.l - pad.r) / (count - 1)},${height - pad.b - Number(v || 0) / max * chartHeight}`).join(' ');
+    const grid = [0, .25, .5, .75, 1].map(r => `<line x1="${pad.l}" y1="${height - pad.b - r * chartHeight}" x2="${width - pad.r}" y2="${height - pad.b - r * chartHeight}" stroke="#d5dbe3"/>`).join('');
     const paths = series.map(s => `<polyline fill="none" stroke="${s.color}" stroke-width="2.5" points="${points(s.values)}"/>`).join('');
-    const legend = series.map((s, i) => `<text x="${pad.l + i * 105}" y="${height - 5}" fill="${s.color}" font-size="10">● ${s.label}</text>`).join('');
-    target.insertAdjacentHTML('beforeend', `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${target.querySelector('h3').textContent}">${grid}<line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${height-pad.b}" stroke="#9eb0c2"/><line x1="${pad.l}" y1="${height-pad.b}" x2="${width-pad.r}" y2="${height-pad.b}" stroke="#9eb0c2"/>${paths}${legend}</svg>`);
+    const legend = series.map((s, i) => chartLegendItem(pad.l + i * 150, height - 5, s.label, s.color, 'line')).join('');
+    target.insertAdjacentHTML('beforeend', `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${target.querySelector('h3').textContent}" ${chartFont}>${grid}${yTickLabels(max, pad, height, chartHeight)}<line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${height-pad.b}" stroke="#333"/><line x1="${pad.l}" y1="${height-pad.b}" x2="${width-pad.r}" y2="${height-pad.b}" stroke="#333"/>${paths}${legend}</svg>`);
   }
 
   function stackedBarChart(target, records) {
@@ -104,12 +119,12 @@
       }).join('');
       return segments;
     }).join('');
-    const grid = [0, .5, 1].map(r => `<line x1="${pad.l}" y1="${height - pad.b - r * chartHeight}" x2="${width - pad.r}" y2="${height - pad.b - r * chartHeight}" stroke="#e5edf5"/>`).join('');
+    const grid = [0, .25, .5, .75, 1].map(r => `<line x1="${pad.l}" y1="${height - pad.b - r * chartHeight}" x2="${width - pad.r}" y2="${height - pad.b - r * chartHeight}" stroke="#d5dbe3"/>`).join('');
     const legend = names.map((id, i) => {
       const name = records.find(record => record.running_compute_by_datacenter?.[id])?.running_compute_by_datacenter?.[id]?.name || id;
-      return `<text x="${pad.l + i * 105}" y="${height - 5}" fill="${colors[i % colors.length]}" font-size="10">● ${name}</text>`;
+      return chartLegendItem(pad.l + i * 150, height - 5, name, colors[i % colors.length], 'square');
     }).join('');
-    target.insertAdjacentHTML('beforeend', `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${target.querySelector('h3').textContent}">${grid}<line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${height-pad.b}" stroke="#9eb0c2"/><line x1="${pad.l}" y1="${height-pad.b}" x2="${width-pad.r}" y2="${height-pad.b}" stroke="#9eb0c2"/>${bars}${legend}</svg>`);
+    target.insertAdjacentHTML('beforeend', `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${target.querySelector('h3').textContent}" ${chartFont}>${grid}${yTickLabels(max, pad, height, chartHeight)}<line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${height-pad.b}" stroke="#333"/><line x1="${pad.l}" y1="${height-pad.b}" x2="${width-pad.r}" y2="${height-pad.b}" stroke="#333"/>${bars}${legend}</svg>`);
   }
 
   function combinedComputeChart(target, records) {
@@ -122,7 +137,7 @@
     const chartWidth = width - pad.l - pad.r;
     const chartHeight = height - pad.t - pad.b;
     const count = Math.max(1, records.length);
-    const colors = overview.centers.map((_, index) => `hsl(${(index * 67 + 205) % 360} 62% 45%)`);
+    const colors = ['#0057b8', '#009e73', '#f08a00', '#7b2cbf', '#d62828', '#0072b2'].slice(0, overview.centers.length);
     const computeTotals = records.map((_, index) => overview.centers.reduce(
       (sum, center) => sum + Number(overview.computeByCenter[center.id]?.[index] || 0), 0,
     ));
@@ -144,16 +159,22 @@
       const y = height - pad.b - Number(value || 0) / powerMax * chartHeight;
       return `${x.toFixed(2)},${y.toFixed(2)}`;
     }).join(' ');
-    const grid = [0, .5, 1].map(ratio => `<line x1="${pad.l}" y1="${height - pad.b - ratio * chartHeight}" x2="${width - pad.r}" y2="${height - pad.b - ratio * chartHeight}" stroke="#e5edf5"/>`).join('');
+    const grid = [0, .25, .5, .75, 1].map(ratio => `<line x1="${pad.l}" y1="${height - pad.b - ratio * chartHeight}" x2="${width - pad.r}" y2="${height - pad.b - ratio * chartHeight}" stroke="#d5dbe3"/>`).join('');
     const legend = [
       ...overview.centers.map((center, index) => ({ label: center.name, color: colors[index] })),
       { label: 'Compute Power', color: '#6d4acb' },
     ].map((item, index) => {
       const column = index % 4;
       const row = Math.floor(index / 4);
-      return `<text x="${pad.l + column * 112}" y="${height - 6 - (legendRows - 1 - row) * 11}" fill="${item.color}" font-size="9">● ${item.label}</text>`;
+      const marker = item.label === 'Compute Power' ? 'line' : 'square';
+      return chartLegendItem(pad.l + column * 125, height - 6 - (legendRows - 1 - row) * 11, item.label, item.color, marker);
     }).join('');
-    target.insertAdjacentHTML('beforeend', `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${target.querySelector('h3').textContent}">${grid}<line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${height-pad.b}" stroke="#9eb0c2"/><line x1="${width-pad.r}" y1="${pad.t}" x2="${width-pad.r}" y2="${height-pad.b}" stroke="#9eb0c2"/><line x1="${pad.l}" y1="${height-pad.b}" x2="${width-pad.r}" y2="${height-pad.b}" stroke="#9eb0c2"/>${bars}<polyline fill="none" stroke="#6d4acb" stroke-width="2.3" points="${powerPoints}"/><text x="4" y="13" fill="#6b7f92" font-size="9">TFLOPS</text><text x="${width-20}" y="13" fill="#6d4acb" font-size="9">MW</text>${legend}</svg>`);
+    const leftTicks = yTickLabels(computeMax, { ...pad, l: pad.l }, height, chartHeight);
+    const rightTicks = Array.from({ length: 5 }, (_, index) => {
+      const ratio = index / 4; const y = height - pad.b - ratio * chartHeight;
+      return chartText(width - pad.r + 5, y + 4, (powerMax * ratio).toFixed(powerMax >= 100 ? 0 : 1), 12, 'start');
+    }).join('');
+    target.insertAdjacentHTML('beforeend', `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${target.querySelector('h3').textContent}" ${chartFont}>${grid}${leftTicks}${rightTicks}<line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${height-pad.b}" stroke="#333"/><line x1="${width-pad.r}" y1="${pad.t}" x2="${width-pad.r}" y2="${height-pad.b}" stroke="#333"/><line x1="${pad.l}" y1="${height-pad.b}" x2="${width-pad.r}" y2="${height-pad.b}" stroke="#333"/>${bars}<polyline fill="none" stroke="#7b2cbf" stroke-width="2.3" points="${powerPoints}"/>${chartText(4, 13, 'TFLOPS', 12, 'start')}${chartText(width - 20, 13, 'MW', 12, 'end')}${legend}</svg>`);
   }
 
   function longTermPowerChart(target, records) {
@@ -180,13 +201,14 @@
       return `<polygon points="${[...upperPoints, ...lowerPoints].join(' ')}" fill="${item.color}" fill-opacity="0.32" stroke="${item.color}" stroke-width="0.7"/>`;
     }).join('');
     const lines = series.lines.map(item => `<polyline fill="none" stroke="${item.color}" stroke-width="2.3" points="${item.values.map((value, index) => `${xAt(index).toFixed(2)},${yAt(value).toFixed(2)}`).join(' ')}"/>`).join('');
-    const grid = [0, .5, 1].map(ratio => `<line x1="${pad.l}" y1="${height - pad.b - ratio * chartHeight}" x2="${width - pad.r}" y2="${height - pad.b - ratio * chartHeight}" stroke="#e5edf5"/>`).join('');
+    const grid = [0, .25, .5, .75, 1].map(ratio => `<line x1="${pad.l}" y1="${height - pad.b - ratio * chartHeight}" x2="${width - pad.r}" y2="${height - pad.b - ratio * chartHeight}" stroke="#d5dbe3"/>`).join('');
     const legend = legendItems.map((item, index) => {
       const column = index % 4;
       const row = Math.floor(index / 4);
-      return `<text x="${pad.l + column * 112}" y="${height - 6 - (legendRows - 1 - row) * 11}" fill="${item.color}" font-size="9">● ${item.label}</text>`;
+      const marker = series.lines.includes(item) ? 'line' : 'square';
+      return chartLegendItem(pad.l + column * 125, height - 6 - (legendRows - 1 - row) * 11, item.label, item.color, marker);
     }).join('');
-    target.insertAdjacentHTML('beforeend', `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${target.querySelector('h3').textContent}">${grid}<line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${height-pad.b}" stroke="#9eb0c2"/><line x1="${pad.l}" y1="${height-pad.b}" x2="${width-pad.r}" y2="${height-pad.b}" stroke="#9eb0c2"/>${areas}${lines}<text x="4" y="13" fill="#6b7f92" font-size="9">MW</text>${legend}</svg>`);
+    target.insertAdjacentHTML('beforeend', `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${target.querySelector('h3').textContent}" ${chartFont}>${grid}${yTickLabels(max, pad, height, chartHeight)}<line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${height-pad.b}" stroke="#333"/><line x1="${pad.l}" y1="${height-pad.b}" x2="${width-pad.r}" y2="${height-pad.b}" stroke="#333"/>${areas}${lines}${chartText(4, 13, 'MW', 12, 'start')}${legend}</svg>`);
   }
 
   function renderCharts(records, longRecords = []) {

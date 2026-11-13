@@ -6,7 +6,7 @@ def esc(value):
     return str(value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 def text(x, y, value, size=15, anchor="middle", weight="400", fill="#183B56"):
-    return f'<text x="{x}" y="{y}" font-family="Microsoft YaHei,SimHei,Arial,sans-serif" font-size="{size}px" font-weight="{weight}" text-anchor="{anchor}" fill="{fill}">{esc(value)}</text>'
+    return f'<text x="{x}" y="{y}" font-family="Times New Roman, serif" font-size="{size}px" font-weight="{weight}" text-anchor="{anchor}" fill="#000000">{esc(value)}</text>'
 
 def box(x, y, w, h, title, subtitle, fill, stroke):
     return (f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="12" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'

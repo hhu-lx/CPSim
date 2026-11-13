@@ -51,6 +51,9 @@ def test_dashboard_and_assets_expose_required_controls():
     assert "upsertLongTermHistory" in asset.text
     assert "combinedComputeChart" in asset.text
     assert "longTermPowerChart" in asset.text
+    assert "const chartLegendItem" in asset.text
+    assert "marker === 'square'" in asset.text
+    assert "fill=\"#000\"" in asset.text
 
     trend_asset = client.get("/static/trend_charts.js")
     assert trend_asset.status_code == 200
